@@ -14,35 +14,28 @@ class DatasetRetriever:
         self.api.authenticate()
         os.makedirs('./data', exist_ok=True)
 
-    def _movies_exists(self):
-        return os.path.exists('./data/movies/movies_dataset_kaggle.csv')
-
-    def _netflix_exists(self):
-        return os.path.exists('./data/netflix/') and len(os.listdir('./data/netflix/')) > 0
-
     def download_movies(self):
-        if not self._movies_exists():
+        if not os.path.exists('./data/movies/movies_dataset_kaggle.csv'):
             self.api.dataset_download_files('smaalizakaria/umons-smaali-cs-movie-one-thesis',
                                             path='./data/movies/', unzip=True)
 
-    def download_netflix(self):
-        if not self._netflix_exists():
-            self.api.dataset_download_files('netflix-inc/netflix-prize-data',
-                                            path='./data/netflix/', unzip=True)
+    def download_movielens(self):
+        if not os.path.exists('./data/movielens/ratings.csv') and not os.path.exists('./data/movielens/rating.csv'):
+            self.api.dataset_download_files('grouplens/movielens-20m-dataset',
+                                            path='./data/movielens/', unzip=True)
 
     def load_data(self):
-        movies_df = pd.read_csv('./data/movies/movies_dataset_kaggle.csv')
-        netflix_files = [f for f in os.listdir('./data/netflix/') if f.startswith('combined_data_')]
-        print(f"Movies: {len(movies_df)} films")
-        print(f"Netflix: {len(netflix_files)} fichiers")
-        return movies_df, netflix_files
-
-    def get_all(self):
         self.download_movies()
-        self.download_netflix()
-        return self.load_data()
+        self.download_movielens()
+
+        movies = pd.read_csv('./data/movies/movies_dataset_kaggle.csv')
+        ratings = pd.read_csv('./data/movielens/rating.csv', dtype={'userId': int, 'movieId': int})
+        ml_movies = pd.read_csv('./data/movielens/movie.csv')
+        links = pd.read_csv('./data/movielens/link.csv', dtype={'movieId': int, 'imdbId': str, 'tmdbId': str})
+
+        return movies, ratings, ml_movies, links
 
 
 if __name__ == "__main__":
     retriever = DatasetRetriever()
-    movies, netflix_files = retriever.get_all()
+    movies, ratings, ml_movies, links = retriever.load_data()
