@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from init_tf_idf import InitMovieTfIdf
+from chap_1.content_based.utils.init_tf_idf import InitMovieTfIdf
 
 
 class ContentBasedRecommender:
-    def __init__(self, user_history_path: str = "data/user_history/user_movie_ids.csv"):
+    def __init__(
+            self,
+            user_history_path: str = "data/user_history/user_movie_ids.csv",
+            movies_path: str = "data/user_history/user_movie_ids.csv"
+    ):
         self.user_history_path = user_history_path
-        self.tfidf = InitMovieTfIdf()
+        self.tfidf = InitMovieTfIdf(movies_path)
         self.vectors = self.tfidf.get_vectors()
         self.movies_df = self.tfidf.movies_df.reset_index(drop=True)
         self.movies_tmdb = self.movies_df['tmdb_id'].astype(str).str.strip().str.replace('.0', '')
@@ -55,14 +59,28 @@ class ContentBasedRecommender:
         recs['score'] = [s for _, s in unseen_scores[:top_k]]
         return recs
 
+    def print_user_history(self, user_id: int, top_k: int = 10):
+        tmdb_ids = self._get_user_tmdb_ids(user_id)
+
+        seen_rows = []
+        for tmdb_id in tmdb_ids:
+            matches = self.movies_df[self.movies_tmdb == tmdb_id]
+            if not matches.empty:
+                seen_rows.append(matches.index[0])
+
+        history = self.movies_df.iloc[seen_rows][['title', 'tmdb_id', 'imdb_id']].reset_index(drop=True)
+        print(f"\nHistorique user {user_id} ({len(history)} films matchés / {len(tmdb_ids)})")
+        print(history.head(top_k).to_string())
+
     def recommend(self, user_id: int, top_k: int = 10):
         user_profile = self.get_user_profile(user_id)
         scores = self.compute_similarities(user_profile)
         seen_indices = self.get_seen_indices(user_id)
+        self.print_user_history(user_id, top_k)
         return self.get_top_recommendations(scores, seen_indices, top_k)
 
 
 if __name__ == "__main__":
     rec = ContentBasedRecommender()
-    recommendations = rec.recommend(10, top_k=10)
-    print(recommendations.round({'score': 4}))
+    recommendations = rec.recommend(10, top_k=50)
+    print('\n', recommendations.round({'score': 4}))
