@@ -6,4 +6,5 @@ USER_HISTORY_PATH = "data/user_history/user_movie_ids.csv"
 
 if __name__ == "__main__":
     DatasetRetriever().load_data()
-    export_user_movie_ids_csv(USER_HISTORY_PATH)
+    export_user_movie_ids_csv(USER_HISTORY_PATH, include_rating=True)
+    
