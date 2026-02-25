@@ -15,9 +15,9 @@ users = list(ratings.keys())
 
 def pearson_sim(u1, u2):
     # Prend deux notes d'utilisateurs et retourne liste de pair de notes
-    # Zip →  (4,5) (N,N) (5,N) (N,N) (N,4) (N,N) (3,4)
+    # Zip →  (4,N) (2,4) (5,N)...
     pairs = [(n1, n2) for n1, n2 in zip(ratings[u1], ratings[u2]) if n1 is not None and n2 is not None]
-    # Pearson a besoin de 2 points sinon crash, explique pq dans mémoire Table 1.9
+    # Pearson a besoin de len >= 2 sinon crash, explique pq dans mémoire Table 1.9
     if len(pairs) < 2:
         return None
     corr, _ = pearsonr(*zip(*pairs))
@@ -41,7 +41,7 @@ def predict_rating(user, film_idx):
         sim = pearson_matrix[user][other]
         note = ratings[other][film_idx]
 
-        # On skip si c'est user lui meme, pas assez de film co-notés, voisin a pas noté de film
+        # On skip si c'est user lui meme ou pas assez de film co-notés ou voisin a pas noté de film
         if other == user or sim is None or note is None:
             continue
         num += sim * (note - moyenne(other))
