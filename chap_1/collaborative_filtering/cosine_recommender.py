@@ -65,11 +65,15 @@ class CosineRecommender:
     def _predict(self, movie_idx: int, neighbors: dict):
         num, den = 0.0, 0.0
         for neighbor_idx, similarity in neighbors.items():
-            if self.matrix[neighbor_idx, movie_idx] == 0:
+            neighbor_rating = self.matrix[neighbor_idx, movie_idx]
+            if neighbor_rating == 0:
                 continue
-            num += similarity
-            den += similarity
-        return round(num / den, 4) if den > 0 else None
+            num += similarity * neighbor_rating  # sim * note (binaire = 1)
+            den += abs(similarity)
+        if den == 0:
+            return None
+        k = 1 / den
+        return round(k * num, 4)
 
     def recommend(self, user_id: int, top_k: int = 10) -> pd.DataFrame:
         user_idx = self.user_idx[user_id]

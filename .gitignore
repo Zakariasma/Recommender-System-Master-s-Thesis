@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+chap_1/shared/data/*
+chap_1/content_based/data
+chap_1/content_based/data/*
+chap_1/collaborative_filtering/data/*
+
+*.npy

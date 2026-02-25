@@ -9,10 +9,10 @@ load_dotenv()
 
 
 class InitMovieTfIdf:
-    def __init__(self, movies_path='./data/movies/movies_dataset_kaggle.csv'):
+    def __init__(self, movies_path='../../shared/data/movies/movies_dataset_kaggle.csv'):
         self.movies_df = pd.read_csv(movies_path)
         self.vectors_path = 'data/movie_tf_idf_vectors.npy'
-        os.makedirs('../../shared/data', exist_ok=True)
+        os.makedirs('data', exist_ok=True)
 
     def preprocess_text(self, row):
         def safe_join(col):
