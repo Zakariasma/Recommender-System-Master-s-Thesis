@@ -7,8 +7,8 @@ from chap_1.content_based.utils.init_tf_idf import InitMovieTfIdf
 class ContentBasedRecommender:
     def __init__(
             self,
-            user_history_path: str = "data/user_history/user_movie_ids.csv",
-            movies_path: str = "data/user_history/user_movie_ids.csv"
+            user_history_path: str = "core_data/user_history/user_movie_ids.csv",
+            movies_path: str = "core_data/user_history/user_movie_ids.csv"
     ):
         self.user_history_path = user_history_path
         self.tfidf = InitMovieTfIdf(movies_path)

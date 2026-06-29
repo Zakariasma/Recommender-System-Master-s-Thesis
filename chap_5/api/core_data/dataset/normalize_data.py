@@ -1,7 +1,7 @@
 import os
 import sys
 
-from chap_5.api.data.retrieve_data import BASE_DIR
+from chap_5.api.core_data.dataset.retrieve_data import BASE_DIR
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 

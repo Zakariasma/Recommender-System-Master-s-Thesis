@@ -42,29 +42,12 @@ def seed_movie_genre(engine, movie_genre: pd.DataFrame):
     movie_genre.to_sql('movie_genre', engine, if_exists='replace', index=False)
 
 
-def seed_historique(engine, full_hist: pd.DataFrame):
-    if table_exists(engine, 'historique'):
-        return
-
-    batch_size = 10_000
-    total = len(full_hist)
-    batches = (total // batch_size) + (1 if total % batch_size else 0)
-
-    for i in range(batches):
-        batch = full_hist.iloc[i * batch_size:(i + 1) * batch_size]
-        batch.to_sql(
-            'historique', engine,
-            if_exists='replace' if i == 0 else 'append',
-            index=False
-        )
-
-
 def drop_data_folder(base_dir: str):
-    if os.path.exists(base_dir):
-        shutil.rmtree(base_dir)
+    for folder in os.listdir(base_dir):
+        if folder != 'cleaned':
+            shutil.rmtree(os.path.join(base_dir, folder))
 
-
-def seed(movies: pd.DataFrame, genres: pd.DataFrame, movie_genre: pd.DataFrame, full_hist: pd.DataFrame):
+def seed(movies: pd.DataFrame, genres: pd.DataFrame, movie_genre: pd.DataFrame):
     print("Connexion à la BD")
     engine = get_engine()
     print("Insert movies")
@@ -72,5 +55,3 @@ def seed(movies: pd.DataFrame, genres: pd.DataFrame, movie_genre: pd.DataFrame, 
     print("Insert genres")
     seed_genres(engine, genres)
     seed_movie_genre(engine, movie_genre)
-    print("Insert historiques")
-    seed_historique(engine, full_hist)

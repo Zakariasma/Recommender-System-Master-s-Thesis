@@ -56,7 +56,7 @@ class PearsonRecommender:
         row = history["userId"].map(self.user_idx).values
         col = history["tmdbId"].map(self.movie_idx).values
         data = history["rating"].values
-        # Forme de la matrice -> user en ligne, film en collone, rating comme data
+        # Forme de la matrice -> user en ligne, film en collone, rating comme core_data
         return csr_matrix((data, (row, col)), shape=(len(self.users), len(self.movies)))
 
     # Calcul des moyennes par utilisateur
