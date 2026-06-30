@@ -35,6 +35,7 @@ class TransitionDB:
                     prob REAL NOT NULL,
                     PRIMARY KEY (s, s_, k))
             """)
+            # La table similarity n'est plus utilisée, on peut la garder ou la supprimer.
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS transitions_similarity (
                     s    TEXT NOT NULL,
@@ -46,8 +47,9 @@ class TransitionDB:
             conn.commit()
 
     def tables_empty(self) -> bool:
+        """Vérifie si la table de skipping est vide (modèle non entraîné)."""
         with self._connect() as conn:
-            row = conn.execute("SELECT COUNT(*) FROM transitions_similarity").fetchone()
+            row = conn.execute("SELECT COUNT(*) FROM transitions_skipping").fetchone()
             return row[0] == 0
 
     def flush_counts(self, rows: list):
@@ -66,6 +68,7 @@ class TransitionDB:
             conn.commit()
 
     def flush_similarity(self, rows: list):
+        # Gardée pour compatibilité, mais plus utilisée
         with self._connect() as conn:
             conn.executemany(
                 "INSERT INTO transitions_similarity (s, s_, k, prob) VALUES (?, ?, ?, ?)", rows
@@ -94,9 +97,10 @@ class TransitionDB:
         return tr
 
     def get_prob(self, s: str, s_: str, k: int) -> float:
+        """Lit la probabilité dans la table transitions_skipping."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT prob FROM transitions_similarity WHERE s = ? AND s_ = ? AND k = ?",
+                "SELECT prob FROM transitions_skipping WHERE s = ? AND s_ = ? AND k = ?",
                 (s, s_, k)
             ).fetchone()
         return row[0] if row else 0.0

@@ -4,22 +4,30 @@ from collections import defaultdict
 
 from chap_5.api.core_data.predictive_model.db.db import TransitionDB
 
-NPY_DIR      = "../data/npy"
+NPY_DIR      = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), '../../data/npy')
+)
 FLAT_PATH    = os.path.join(NPY_DIR, "sequences_flat.npy")
 OFFSETS_PATH = os.path.join(NPY_DIR, "sequences_offsets.npy")
 
-
 class SkippingModel:
 
-    def __init__(self, k: int, db: TransitionDB, max_skip: int, batch_size: int, fraction: float = None):
-        self.k          = k
-        self.db         = db
-        self.max_skip   = max_skip
+    def __init__(
+        self,
+        k: int,
+        db: TransitionDB,
+        max_skip: int,
+        batch_size: int,
+        fraction: float = None,
+    ):
+        self.k = k
+        self.db = db
+        self.max_skip = max_skip
         self.batch_size = batch_size
-        self.fraction   = fraction
+        self.fraction = fraction
 
     def fit(self):
-        flat    = np.load(FLAT_PATH,    mmap_mode='r')
+        flat    = np.load(FLAT_PATH, mmap_mode='r')
         offsets = np.load(OFFSETS_PATH, mmap_mode='r')
         total   = len(offsets) - 1
 
