@@ -104,3 +104,21 @@ class TransitionDB:
                 (s, s_, k)
             ).fetchone()
         return row[0] if row else 0.0
+
+    def get_successors(self, s: str, k: int) -> dict:
+        """Retourne {s_: prob} pour tous les successeurs de s au niveau k."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT s_, prob FROM transitions_skipping WHERE s = ? AND k = ?",
+                (s, k)
+            ).fetchall()
+        return {s_: prob for s_, prob in rows}
+
+    def get_states(self, k: int) -> list:
+        """Retourne la liste des états distincts observés (s) pour un k donné."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT s FROM transitions_skipping WHERE k = ?", (k,)
+            ).fetchall()
+        return [row[0] for row in rows]
+
