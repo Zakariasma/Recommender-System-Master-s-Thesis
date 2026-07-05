@@ -38,3 +38,21 @@ class KeyValueStore:
                 VALUES (:ns, :k, CAST(:v AS JSONB))
                 ON CONFLICT (namespace, key) DO UPDATE SET value = excluded.value
             """), rows)
+
+    def get_many(self, keys: list) -> dict:
+        if not keys:
+            return {}
+        result = {}
+        # On découpe par 900 pour éviter que l'IN clause de Postgres ne soit trop grande
+        with self.engine.connect() as conn:
+            for i in range(0, len(keys), 900):
+                batch_keys = keys[i:i + 900]
+                placeholders = ",".join([f":k{j}" for j in range(len(batch_keys))])
+                params = {f"k{j}": k for j, k in enumerate(batch_keys)}
+                params["ns"] = self.namespace
+
+                query = text(f"SELECT key, value FROM kv_store WHERE namespace = :ns AND key IN ({placeholders})")
+                rows = conn.execute(query, params).fetchall()
+                for k, v in rows:
+                    result[k] = json.loads(v)
+        return result

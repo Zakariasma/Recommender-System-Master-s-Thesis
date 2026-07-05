@@ -12,13 +12,25 @@ class TransitionStore:
         with self.engine.begin() as conn:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS counts (
-                    s TEXT NOT NULL, s_ TEXT NOT NULL, count REAL NOT NULL,
-                    PRIMARY KEY (s, s_))
+                    s TEXT NOT NULL,
+                    s_ TEXT NOT NULL,
+                    count REAL NOT NULL,
+                    PRIMARY KEY (s, s_)
+                )
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS transitions (
-                    s TEXT NOT NULL, s_ TEXT NOT NULL, k INTEGER NOT NULL, prob REAL NOT NULL,
-                    PRIMARY KEY (s, s_, k))
+                    s TEXT NOT NULL,
+                    s_ TEXT NOT NULL,
+                    k INTEGER NOT NULL,
+                    prob REAL NOT NULL,
+                    PRIMARY KEY (s, s_, k)
+                )
+            """))
+            # Index dédié aux requêtes filtrant par k (get_states, get_successors, batch_get_successors)
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_transitions_k_s
+                ON transitions (k, s) INCLUDE (s_, prob)
             """))
 
     def is_empty(self) -> bool:
