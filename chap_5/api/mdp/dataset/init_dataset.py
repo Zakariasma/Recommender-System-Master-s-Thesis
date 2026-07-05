@@ -2,6 +2,7 @@ from chap_5.api.mdp.dataset.format_to_npy import build_sequences
 from chap_5.api.mdp.dataset.normalize_data import preprocess
 from chap_5.api.mdp.dataset.seed_database import seed, drop_data_folder, get_engine, table_exists
 from chap_5.api.mdp.dataset.retrieve_data import DatasetRetriever
+from chap_5.api.mdp.dataset.init_genre_cache import init_genre_cache
 from chap_5.api.mdp.config import RAW_DIR
 
 
@@ -21,6 +22,9 @@ def init_dataset():
 
     print("Seed en bd...")
     seed(movies, genres, movie_genre)
+
+    print("Initialisation du cache des genres...")
+    init_genre_cache()
 
     print("Nettoyage...")
     drop_data_folder(str(RAW_DIR.parent))

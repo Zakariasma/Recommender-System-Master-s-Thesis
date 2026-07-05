@@ -1,9 +1,20 @@
+# seed_database.py
 import os
 import shutil
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, DateTime, func
 
 from chap_5.api.mdp.config import DATABASE_URL
+
+# On définit la metadata et la table historique
+metadata = MetaData()
+movie_history = Table(
+    'movie_history',
+    metadata,
+    Column('id', Integer, primary_key=True, autoincrement=True),
+    Column('movie_id', Integer, nullable=False),
+    Column('viewed_at', DateTime(timezone=True), server_default=func.now())
+)
 
 
 def get_engine():
@@ -29,9 +40,14 @@ def drop_data_folder(base_dir: str, keep: set = frozenset({'cleaned', 'npy'})):
         if folder not in keep:
             shutil.rmtree(os.path.join(base_dir, folder))
 
+
 def seed(movies: pd.DataFrame, genres: pd.DataFrame, movie_genre: pd.DataFrame):
     print("Connexion à la BD")
     engine = get_engine()
+
+    print("Create movie_history table if not exists")
+    metadata.create_all(engine, tables=[movie_history])
+
     print("Insert movies")
     _seed_table(engine, movies, 'movies')
     print("Insert genres")
