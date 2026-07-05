@@ -11,7 +11,7 @@ def pad_imdb_id(imdb_id):
 
 
 def export_user_movie_ids_csv(
-    output_path: str = "core_data/user_history/user_movie_ids.csv",
+    output_path: str = "mdp/user_history/user_movie_ids.csv",
     include_rating: bool = False
 ):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
