@@ -1,37 +1,9 @@
 from sqlalchemy import create_engine, text
 
-
 class TransitionStore:
-    """Stocke et lit tr_predict(s, s') par taille de fenêtre k."""
 
     def __init__(self, database_url: str):
         self.engine = create_engine(database_url)
-        self._init_tables()
-
-    def _init_tables(self):
-        with self.engine.begin() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS counts (
-                    s TEXT NOT NULL,
-                    s_ TEXT NOT NULL,
-                    count REAL NOT NULL,
-                    PRIMARY KEY (s, s_)
-                )
-            """))
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS transitions (
-                    s TEXT NOT NULL,
-                    s_ TEXT NOT NULL,
-                    k INTEGER NOT NULL,
-                    prob REAL NOT NULL,
-                    PRIMARY KEY (s, s_, k)
-                )
-            """))
-            # Index dédié aux requêtes filtrant par k (get_states, get_successors, batch_get_successors)
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_transitions_k_s
-                ON transitions (k, s) INCLUDE (s_, prob)
-            """))
 
     def is_empty(self) -> bool:
         with self.engine.connect() as conn:

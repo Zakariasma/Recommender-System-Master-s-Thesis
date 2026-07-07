@@ -25,18 +25,3 @@ class AlphaBeta:
         beta_r = self.alpha(r) + (1.0 - weighted_sum) / ((n - 1) * q_r)
 
         return min(max(beta_r, EPSILON), 1.0 - EPSILON)
-
-    def beta_fast(self, alpha_r: float, q_r: float, n_succ: int, weighted_sum: float) -> float:
-        """
-        Version optimisée O(1).
-        Au lieu de recalculer 'weighted_sum' et 'alpha(r)' à chaque appel,
-        on les passe en paramètres car ils ont déjà été calculés en amont
-        dans la boucle principale du worker. Cela évite la complexité O(N^2).
-        """
-        if n_succ <= 1:
-            return 1.0 - EPSILON
-        if q_r == 0:
-            return 1.0 - EPSILON
-
-        beta_r = alpha_r + (1.0 - weighted_sum) / ((n_succ - 1) * q_r)
-        return min(max(beta_r, EPSILON), 1.0 - EPSILON)

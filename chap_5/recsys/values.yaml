@@ -1,0 +1,111 @@
+replicaCount: 1
+imagePullSecrets:
+- name: registry-pull-secret
+nameOverride: ''
+fullnameOverride: ''
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ''
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+backend:
+  image:
+    repository: registry.lizaine.com/series-api
+    pullPolicy: Always
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1500m
+      memory: 4Gi
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 15Gi
+    mountPath: /app/chap_5/api/mdp/data
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+frontend:
+  image:
+    repository: registry.lizaine.com/series-front
+    pullPolicy: Always
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 80
+  ingress:
+    enabled: true
+    className: traefik
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+      traefik.ingress.kubernetes.io/router.tls: 'true'
+      traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
+    hosts:
+    - host: recsys.lizaine.com
+      paths:
+      - path: /
+        pathType: Prefix
+    tls:
+    - hosts:
+      - recsys.lizaine.com
+      secretName: recsys-lizaine-tls
+postgresql:
+  enabled: true
+  name: recsys-postgres
+  instances: 1
+  postgresql:
+    enableSuperuserAccess: true
+  parameters:
+    max_connections: '50'
+  resources:
+    requests:
+      cpu: 256m
+      memory: 256Mi
+    limits:
+      cpu: 512m
+      memory: 512Mi
+  volume:
+    size: 5Gi
+    storageClass: local-path
+  nodePort:
+    enabled: true
+    port: 30435
+env:
+  public:
+    DB_HOST: recsys-postgres-rw
+    DB_PORT: '5432'
+    DB_NAME: master
+    DB_USER: postgres
+    BOOTSTRAP: 'True'
+    CORS_ORIGINS: https://recsys.lizaine.com,http://localhost:8080
+  private:
+    KAGGLE_USERNAME: AgAsQmEANO2ijnGKAQfuuAL9imxRwTLK9cyqj6w8WcrRjubMX9XIWnhORkjF08JjAGmLvBKA47I/ZNDYtRFSSeST6xlwxnspHZhCqjEV6TAor81s+3YmZOP1olNxZgUypBSlV6dBofHCUW3IbNmLkXttBIiexG0ESANG1Rkt+jFs35RqbUvNv+729rWng+S6Ig7XQqYp4CLVC4pWSjBzGvI30mtRQn96ON0gogKmDMe2j1ZGUsy0jUnj9504RXymsmslpMYN4fZjwyR4gF0Oh5OsYsWwqR+44E1ayEjLxC7YBwH4unHy7JZF/q7dlcn708USgR6YA3ivQOIVGq3rLAjlIyPjX9opTr+ljhSWmS/XqwLeiWAfd2sENo4G+gU8lQ0dq2teG7ku/PJREfLFiPlU99sSk2h4UDGZi03hP+eleB6JMfCEAH2AeUvvXwr2vyiXeaSmFdWYrpgByFtRqs0glp8xCHlm+a99I2B+nN90GMdQO8CNEqfwPds/P3oBF5lb6OD9wo0vZiODzH7YHhn44htB9fZMXApSET52rdJJaYDXDeJL49hrCeH8tM1fW9l97r+G6KTuk+6KKt8YOpI2akxqk/eHN7PzVWiCqmOMURBBaglF83Mu4sNt8E1dVxh5CFrFLvSQRVU+1go58QrPsLLyug+fPsbXqthyW9xrEpjXTrbADfyy+Nx4YtgS9/xiNFnxMhQQN9V1VsRL
+    KAGGLE_API_TOKEN: AgBoSsa+sOAaGzVqjtwymdNo4bYlaslfe7jD8inydsHfvApx/Tv6D3uSem5e/y0eo4WbRdwmojYa3NaP7+r5NfDY60O5E0Qzco5csxffKbcHws2alUL8L4xY7dSr6AdZLJPduTKoLQpZRM1CXH8qf6fY92An3IgMFC/+J5600D5BEkvPQ+wExF2Zbq1LkqJPDzOl9aU18E2L4j/mFl6hpKu1XTHFrE+sXWxWzowNuH+k3IxK3+Hm7bd0LEhg39QlZoBDAiI4+92MfsA57SVVX+DZxT+xiwrYjzs0cYOR/I1vqqCqavkm/RHokfXttuWz28+L8UAWrjZOPGpFJICVZTrH7d23QJaUSNn9DP5MaDfCEhzyQJ3ItM0fr0dNRZFgvPZ1Np2qZRDtG8GT65MZfhHi0FEbMtWhhtXPRy6dZ+RPv5ZyJRPHmBKXvHe0wnl8HWL/NsGXqJ+NxklIsR83HjKcyf3dPMnhCGZRVtETzL0DN8oxaFHhj5dByml4/9uUbIDwxJHnlafeL34943jyEeFT6C570XLsAsmHBVdubU9IJe+SDrN0/p4IswOnX+pHw2JNQaDZW1/CTwI3IioDSx8MNf6wnrvzXjuSUNxUeS6rnUxsM539an5Z8Ta9fCvFKiA6eQvBmuJueXpEiRoAkNv6QrRXcqzGXfuK3tMs8g7bcmtJeMTww91m8veDN5CtCUBXJrU0Oly6Bra2gq0KCSVHuBeGlknFZCtcsjCDEMwhfSIkUrWS
+    POSTGRES_PASSWORD: AgAtU/YFh6EgW5WRjOA1lqiWSZPobVXVKhMbhDh5+GxdllMlWTxSFf0JXjaabR5sEf8rGAzN1cZOjixQFfkDGH6WFUinLIXZXDKICtNiSU1hPF5KyuepXJU6CJYTRLeHAG/+O1NLyLsftu9tyt0YhVuk7XMViBf6vI47iJ6QOY1lJOumH+IW9vy5JhvfKrEA7eR07W+DwYLhtFXFVWHZq152cLJmoOd9KTYSeJ/G7Lh4+HYNL2REGNySOFQUXBD12OUoDdQdttXzrFy2S8fABkn5IQKOy9tSCUVyiy0G3R2p6aif2RK+xJx1jEJh9tkLhYiXwiPm4gnY4pnjFOtls2VOrng2Y/hUrRJJpb1yZpYVkcPBMPH3ui2iXEhihfXwsTxYQN7/vMFkl9HmgmBaeIuuCRhGfZcU//LZWtt+ZZIdMUbRkHnCO6zdx/bdOLxP5Om/kL7MIIXnR+JvR41OepGarO/j6tok669W5FxP+m/RvnbUd/DLX6LwDSbVu6INFtm4sknKiy5R8XKjX0Vxe1Yn0RsMiczD7Lzf6b+kijpEA2hf9ah1ZqtgiWfREdXe5YxsRaP20paOrVATI5eS6vcOwiEDoKMRLPLmY5KcRVnztYDujdL952rOQWCCNzX/eO9PaYGl1xzuNMcnodhq9Y04uJ7UCTUkmk5inKI1jYV8/pTI6eSoDvdRhtzZ6O+rMHVm//jv2oxIMn+uXK7k6tu3JYPw/KLzb7e84moowpvcXKrmQCvwWBzq2dxLkOUDX4LVqQ==
+    DB_PASSWORD: AgCLjwDxnkvNhux/jg8PhqBTL4l81y28en1QlfuI8/Zez0nNWxtaSSfGQR9jjhqusH7jdrTUNnm6f+VEwjMBMfe1yD/KUxla7G6z/RaM8CGqy5QLNrFgbRG8fSvs/mLnxXQh8CF/zhFjj6m26lN64gQLbBi0xLrYaLk3bFNHSgfP1wuYeK4nK7aNd1zLbDrCNa7DYAELvHWkcpR8/BP7MfIuLY2qy5jzOs9k6KGOeMlWYR/lwCTnD0cjhDvhSWqKx0cQledNoqOxmiG+7uL/aCTAuqU7hOk/FZkY9wrr/aZBce+1nOo5rrev1WQh0cbKjK8gNzH36S8f44gjIxC1pchiPaIOtJQL3RTngT1nCoQqnvRuvC5NpANqqOUfQJSN8yI7+ZiijHxHCcCpXX/Pz+MO+QHQHfgV+AMweXtxBM1Xa3TJAEo56B+Zy5wcNdXEYgpLPk7Ys26sWyXp9i3rSaN0M1yyElWnEupUAXDM2+fZydO7N+MBKk3n2eI49nbD46CwFj3L8NqzZvFphD4IHGKdz5JOiLJs2FPjAkvyDS56zRS46vrkZkr2a3tNFURLxuBVHLqy19g76ncbbwG6en/D4re2iaXGhlh9AzcW8EVBIP9KTLrobawLL9oPXe37TepMeVG/BUot4fMTsm2aULEFcp0MLfdr367x/f/VeZheC08b2wel9gOnWWigfpzjSfA14M1nhrPcwesHtDK56HIPjtttzYmHp6oA4kyDtyXW0rHcQ2muy3O8bjGK1o4PQ1HnPA==

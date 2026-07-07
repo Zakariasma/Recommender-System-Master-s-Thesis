@@ -1,0 +1,6 @@
+.env
+.venv
+__pycache__
+mdp/data/raw
+mdp/data/cleaned
+mdp/data/npy

@@ -3,7 +3,6 @@ from chap_5.api.mdp.mdp.popularity import PopularityModel
 from chap_5.api.mdp.config import GAMMA_BOOST
 
 class MDPTransition:
-    """tr_MDP(s, r, s') = tr_predict(s, s') modulé par les facteurs α (boost) et β (atténuation)."""
 
     def __init__(self, predictive_model, gamma: float = GAMMA_BOOST):
         self.model = predictive_model

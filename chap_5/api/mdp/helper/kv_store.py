@@ -1,24 +1,11 @@
 import json
 from sqlalchemy import create_engine, text
 
-
 class KeyValueStore:
-    """Une seule table Postgres (namespace, key, value) partagée par tous les usages."""
 
     def __init__(self, database_url: str, namespace: str):
         self.engine = create_engine(database_url)
         self.namespace = namespace
-        self._init_table()
-
-    def _init_table(self):
-        with self.engine.begin() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS kv_store (
-                    namespace TEXT NOT NULL,
-                    key TEXT NOT NULL,
-                    value JSONB NOT NULL,
-                    PRIMARY KEY (namespace, key))
-            """))
 
     def get(self, key: str, default=None):
         with self.engine.connect() as conn:
@@ -43,7 +30,6 @@ class KeyValueStore:
         if not keys:
             return {}
         result = {}
-        # On découpe par 900 pour éviter que l'IN clause de Postgres ne soit trop grande
         with self.engine.connect() as conn:
             for i in range(0, len(keys), 900):
                 batch_keys = keys[i:i + 900]
@@ -54,5 +40,5 @@ class KeyValueStore:
                 query = text(f"SELECT key, value FROM kv_store WHERE namespace = :ns AND key IN ({placeholders})")
                 rows = conn.execute(query, params).fetchall()
                 for k, v in rows:
-                    result[k] = json.loads(v)
+                    result[k] = v
         return result

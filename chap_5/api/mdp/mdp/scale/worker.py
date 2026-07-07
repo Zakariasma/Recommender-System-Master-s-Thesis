@@ -6,7 +6,7 @@ from collections import defaultdict
 from chap_5.api.mdp.config import GAMMA_BOOST
 import chap_5.api.mdp.mdp.scale.shared_cache as shared_cache
 from chap_5.api.mdp.predictive_model.state_key import encode, decode
-from chap_5.api.mdp.mdp.alpha_beta import AlphaBeta
+from chap_5.api.mdp.mdp.alpha_beta import AlphaBetaScale
 from chap_5.api.mdp.mdp.popularity import PopularityModel
 
 EPSILON = 1e-6

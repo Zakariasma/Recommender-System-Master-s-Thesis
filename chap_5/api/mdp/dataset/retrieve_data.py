@@ -14,8 +14,9 @@ DATASETS = {
     'genres': 'smaalizakaria/genres',
     'movie_genre': 'smaalizakaria/movie-genre',
     'movielens': 'grouplens/movielens-20m-dataset',
+    'transitions': 'smaalizakaria/transitions',
+    'kv_store': 'smaalizakaria/kv-store',
 }
-
 
 class DatasetRetriever:
     def __init__(self):
@@ -57,3 +58,11 @@ class DatasetRetriever:
         links = pd.read_csv(self._find_csv('movielens', 'link'),
                              dtype={'movieId': int, 'imdbId': str, 'tmdbId': str})
         return historique, movies, genres, movie_genre, ratings, ml_movies, links
+
+
+    def get_mdp_csv_paths(self):
+        """Télécharge et retourne uniquement les chemins des CSV MDP."""
+        self.download_all()
+        trans_path = self._find_csv('transitions')
+        kv_path = self._find_csv('kv_store')
+        return trans_path, kv_path

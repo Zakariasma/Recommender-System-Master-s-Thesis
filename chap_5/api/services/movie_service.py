@@ -3,8 +3,7 @@ from sqlalchemy import text, bindparam
 from sqlalchemy.engine import Engine
 
 from chap_5.api.mdp.dataset.seed_database import get_engine
-from chap_5.api.schemas.movie import MovieRow, MoviePreview, MovieDetails
-
+from chap_5.api.schemas.movie import MovieRow, MoviePreview, MovieDetails, HeroSlide
 
 class MovieService:
     def __init__(self, engine: Engine | None = None):
@@ -109,7 +108,6 @@ class MovieService:
             conn.execute(query, {"movie_id": movie_id})
 
     def search_movies(self, query: str, limit: int = 5) -> list[MoviePreview]:
-        # On utilise LOWER() pour une recherche insensible à la casse
         sql_query = text("""
                          SELECT id, title, poster
                          FROM movies
@@ -130,3 +128,34 @@ class MovieService:
             )
             for row in rows
         ]
+
+    def get_history(self, limit: int = 20) -> list[MoviePreview]:
+        """Retourne les N derniers films vus (uniques), du plus récent au plus ancien."""
+        query = text("""
+                     SELECT m.id, m.title, m.poster
+                     FROM movies m
+                              INNER JOIN (SELECT movie_id, MAX(viewed_at) AS last_viewed
+                                          FROM movie_history
+                                          GROUP BY movie_id) h ON h.movie_id = m.id
+                     ORDER BY h.last_viewed DESC LIMIT :limit
+                     """)
+
+        with self.engine.connect() as conn:
+            rows = conn.execute(query, {"limit": limit}).mappings().all()
+
+        return [
+            MoviePreview(
+                id=str(row["id"]),
+                background=row["poster"] or "",
+                title=row["title"]
+            )
+            for row in rows
+        ]
+
+    @staticmethod
+    def _to_movie_preview(row) -> MoviePreview:
+        return MoviePreview(
+            id=str(row["id"]),
+            background=row["poster"] or "",
+            title=row["title"],
+        )

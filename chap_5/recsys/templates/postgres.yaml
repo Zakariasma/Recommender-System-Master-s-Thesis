@@ -1,0 +1,59 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.postgresql.name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    {{- include "recsys.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgresql.instances }}
+  enableSuperuserAccess: {{ .Values.postgresql.postgresql.enableSuperuserAccess | default false }}
+
+  postgresql:
+    parameters:
+      {{- range $k, $v := .Values.postgresql.parameters }}
+      {{ $k }}: "{{ $v }}"
+      {{- end }}
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.env.public.DB_NAME }}
+      owner: {{ .Values.env.public.DB_USER }}
+
+  storage:
+    size: {{ .Values.postgresql.volume.size }}
+    storageClass: {{ .Values.postgresql.volume.storageClass }}
+  {{- with .Values.postgresql.resources }}
+  resources:
+    requests:
+      cpu: {{ .requests.cpu }}
+      memory: {{ .requests.memory }}
+    limits:
+      cpu: {{ .limits.cpu }}
+      memory: {{ .limits.memory }}
+  {{- end }}
+{{- end }}
+
+{{- if and .Values.postgresql.enabled .Values.postgresql.nodePort.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgresql.name }}-nodeport
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "recsys.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+      nodePort: {{ .Values.postgresql.nodePort.port }}
+      protocol: TCP
+      name: postgresql
+  selector:
+    cnpg.io/cluster: {{ .Values.postgresql.name }}
+    role: primary
+{{- end }}

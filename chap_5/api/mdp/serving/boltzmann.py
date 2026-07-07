@@ -5,8 +5,8 @@ import random
 def boltzmann(scores: dict, temperature: float) -> dict:
     if not scores:
         return {}
-    # Astuce : on soustrait le max pour éviter l'overflow de math.exp
     max_score = max(scores.values())
+    # on soustrait le max pour éviter l'overflow de math.exp
     exp_scores = {k: math.exp((v - max_score) / temperature) for k, v in scores.items()}
     total = sum(exp_scores.values())
     return {k: v / total for k, v in exp_scores.items()}

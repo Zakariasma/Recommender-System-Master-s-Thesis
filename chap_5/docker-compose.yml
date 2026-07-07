@@ -1,0 +1,43 @@
+services:
+  # 1. Base de données PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: recsys-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-master}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  backend:
+    container_name: recsys-backend-container
+    restart: unless-stopped
+    env_file:
+      - .env
+    build:
+      context: ..
+      dockerfile: chap_5/api/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  # 3. Frontend React (Nginx)
+  frontend:
+    container_name: recsys-frontend-container
+    restart: unless-stopped
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

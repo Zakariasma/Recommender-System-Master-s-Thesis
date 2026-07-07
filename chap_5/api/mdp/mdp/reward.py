@@ -5,7 +5,6 @@ from chap_5.api.mdp.config import DATABASE_URL
 
 
 class RewardModel:
-    """Charge et cache les scores des films (table movies) pour la policy iteration."""
 
     def __init__(self, database_url: str = DATABASE_URL):
         self.engine = create_engine(database_url)

@@ -10,6 +10,15 @@ class MovieRow(BaseModel):
     genre_name: str
     movies_preview: list[MoviePreview]
 
+class HeroSlide(BaseModel):
+    id: str
+    background: str
+    title: str
+    description: Optional[str] = None
+    year: Optional[int] = None
+    rating: Optional[float] = None
+    tag: Optional[str] = None
+
 class MovieDetails(BaseModel):
     id: str
     logo_title: Optional[str] = None

@@ -5,7 +5,6 @@ from chap_5.api.mdp.config import FLAT_PATH
 
 
 class PopularityModel:
-    """p(r) = fréquence de l'item r dans tout l'historique."""
 
     def __init__(self, flat_path=FLAT_PATH):
         flat = np.load(flat_path, mmap_mode='r')

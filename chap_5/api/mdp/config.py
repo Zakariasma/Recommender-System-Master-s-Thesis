@@ -4,10 +4,16 @@ from dotenv import load_dotenv
 
 CORE_DATA_DIR = Path(__file__).resolve().parent
 ROOT_DIR = CORE_DATA_DIR.parents[2]
-
 load_dotenv(ROOT_DIR / ".env")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/master")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "master")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+BOOTSTRAP = os.getenv("BOOTSTRAP", "False").lower() in ("true", "1", "t")
 
 K = int(os.getenv("MDP_K", 3))
 FRACTION = float(os.getenv("MDP_FRACTION", 1.0))
@@ -29,3 +35,4 @@ FLAT_PATH = NPY_DIR / "sequences_flat.npy"
 OFFSETS_PATH = NPY_DIR / "sequences_offsets.npy"
 USER_IDS_PATH = NPY_DIR / "user_ids.csv"
 FULL_HIST_PATH = CLEANED_DIR / "historique_full.csv"
+
