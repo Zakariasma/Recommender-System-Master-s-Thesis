@@ -1,17 +1,26 @@
-from chap_1.shared.utils.dataset_retrieve import DatasetRetriever
-from chap_1.content_based.content_based_recommander import ContentBasedRecommender
-from chap_1.shared.utils.map_user_history import export_user_movie_ids_csv
-
-USER_ID = 10
-TOP_K = 20
-USER_HISTORY_PATH = "data/user_history/user_movie_ids.csv"
-MOVIES_PATH = "../shared/data/movies/movies_dataset_kaggle.csv"
+from chap_1.content_based.services.init_dataset import DatasetRetriever
+from chap_1.content_based.services.recommender import ContentBasedRecommender
+from chap_1.content_based.services.tfidf_matrix import TfidfMatrixBuilder
+from chap_1.content_based.services.user_profile import UserProfileBuilder
 
 if __name__ == "__main__":
-    DatasetRetriever().load_data()
-    export_user_movie_ids_csv(USER_HISTORY_PATH)
-    rec = ContentBasedRecommender(user_history_path=USER_HISTORY_PATH, movies_path=MOVIES_PATH)
-    recommendations = rec.recommend(USER_ID, top_k=TOP_K)
+    retriever = DatasetRetriever()
+    ratings, movies = retriever.load_data()
 
-    print(f"\nTop {TOP_K} recommandations pour user {USER_ID}")
-    print(recommendations.round({'score': 4}).to_string())
+    builder = TfidfMatrixBuilder()
+    tfidf_matrix = builder.build(movies)
+
+    user_id = 10
+    user_builder = UserProfileBuilder(user_id, ratings, movies, tfidf_matrix)
+
+    user_builder.show_last_watched()
+
+    user_vector = user_builder.build_profile_vector()
+
+    if user_vector is not None:
+        watched_movie_ids = set(ratings[ratings['userId'] == user_id]['movieId'].values)
+
+        recommender = ContentBasedRecommender(tfidf_matrix, movies, user_vector, top_k=50)
+        recommender.show_recommendations(watched_movie_ids)
+    else:
+        print("Aucun film aimé ou aucun film visionné, impossible de construire un profil.")

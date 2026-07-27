@@ -1,16 +1,26 @@
 ## Implémentation Content-Based Filtering
 
-Cette partie est dédiée à l'implémentation d'un système de recommandation basé sur le *content-based filtering*.
+Cette partie contient l'implémentation d'un système de recommandation basé sur le *content-based filtering* en utilisant le dataset **MovieLens 20M**.
 
-On utilisera deux datasets :
+Le fichier principal pour exécuter le programme est `main.py`.
 
-1. **Dataset films** : dataset personnel construit à partir de données agrégées via Wikipedia, Wikidata et nettoyées via l'intelligence artificielle Llama3.2:3B  
-2. **Dataset historique utilisateurs** : dataset externe (non construit personnellement). Un objectif de ce travail est de construire notre propre dataset d'historique utilisateur. Pour l'instant, nous utilisons un dataset Kaggle.
+### Prérequis (Kaggle API)
 
-Le fichier principal de cette partie est `main.py`.
+Pour télécharger automatiquement le dataset, le programme a besoin de s'authentifier à Kaggle. 
 
-### Prérequis Kaggle
-Pour utiliser `main.py`, inscrivez-vous sur [Kaggle](https://www.kaggle.com) et générez une clé API :  
-[https://github.com/Kaggle/kaggle-cli/blob/main/docs/README.md#authentication](https://github.com/Kaggle/kaggle-cli/blob/main/docs/README.md#authentication)
+1. Créez un compte sur [Kaggle](https://www.kaggle.com/) si ce n'est pas déjà fait.
+2. Allez dans vos paramètres de compte (*Settings* -> *API TOKEN* -> *Generate New Token*) pour récupérer votre nom d'utilisateur et votre clé API.
+3. À la racine du projet, créez un fichier `.env`.
+4. Ajoutez-y ces deux variables avec vos informations :
 
-Placez votre **username** et **clé API** dans le fichier `.env` à la racine du repo (voir `.env.example`).
+```env
+KAGGLE_USERNAME=xxxxx
+KAGGLE_API_TOKEN=xxxxx
+```
+### Lancement
+
+Une fois le fichier `.env` configuré, vous pouvez lancer le programme :
+
+```bash
+python main.py
+```
