@@ -18,8 +18,6 @@ class ContentBasedRecommender:
             movie_id = self.movies_df.iloc[idx]['movieId']
             if movie_id not in watched_movie_ids:
                 movie_scores.append((idx, score))
-
-        # Tri par ordre décroissant (meilleure sim en premier)
         movie_scores = sorted(movie_scores, key=lambda x: x[1], reverse=True)
         top_k_movies = movie_scores[:self.top_k]
 

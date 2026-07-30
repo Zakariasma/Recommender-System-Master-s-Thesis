@@ -6,7 +6,7 @@ load_dotenv()
 from kaggle.api.kaggle_api_extended import KaggleApi
 import pandas as pd
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), '..', 'dataset')
+BASE_DIR = os.path.join(os.path.dirname(__file__), '.', 'dataset')
 
 class DatasetRetriever:
     def __init__(self):
