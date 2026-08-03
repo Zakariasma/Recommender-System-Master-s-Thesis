@@ -11,18 +11,6 @@ class MDPTransition:
     def get_successors(self, s: tuple) -> dict:
         return self.model.get_successors(s)
 
-    def tr_mdp(self, s: tuple, r: int) -> dict:
-        successors = self.get_successors(s)
-        alpha_r = self.ab.alpha(r)
-
-        result = {s[1:] + (r,): alpha_r * successors.get(r, 0.0)}
-        for r_prime, q in successors.items():
-            if r_prime != r:
-                beta_r_prime = self.ab.beta(r_prime, successors)
-                result[s[1:] + (r_prime,)] = beta_r_prime * q
-
-        return self._normalize(result)
-
     def tr_mdp_list(self, s: tuple, R: list) -> dict:
         successors = self.get_successors(s)
         if not R:

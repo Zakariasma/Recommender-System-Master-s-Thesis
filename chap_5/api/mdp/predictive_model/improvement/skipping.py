@@ -40,15 +40,25 @@ class SkippingModel:
 
     def _process_sequence(self, seq, counts):
         k = self.k
-        for pos in range(len(seq) - k):
-            s = encode(seq[pos:pos + k])
-            s_ = encode(seq[pos + 1:pos + k + 1])
-            counts[s][s_] += 1.0
+        seq_len = len(seq)
 
-            for j in range(pos + k + 1, min(len(seq), pos + k + 1 + self.max_skip)):
-                weight = 1.0 / (2 ** (j - (pos + k)))
-                s_skip = encode(list(seq[pos + 1:pos + k]) + [int(seq[j])])
+        for pos in range(seq_len - k):
+            current = tuple(int(x) for x in seq[pos:pos + k])
+            next_item = int(seq[pos + k])
+
+            s = encode(current)
+            s_next = encode(current[1:] + (next_item,))
+
+            counts[s][s_next] += 1.0
+
+            prefix = current[1:]
+            stop = min(seq_len, pos + k + 1 + self.max_skip)
+
+            weight = 0.5
+            for j in range(pos + k + 1, stop):
+                s_skip = encode(prefix + (int(seq[j]),))
                 counts[s][s_skip] += weight
+                weight *= 0.5
 
     def _log(self, done, total):
         pct = 100 * done / total
