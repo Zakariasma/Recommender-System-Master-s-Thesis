@@ -1,7 +1,7 @@
 import time
 
 from chap_5.api.mdp.helper.kv_store import KeyValueStore
-from chap_5.api.mdp.predictive_model.state_key import encode
+from chap_5.api.mdp.predictive_model.helper.encoder import encode
 from chap_5.api.mdp.config import DATABASE_URL, GAMMA_RL, LIST_SIZE, THRESHOLD, BATCH_SIZE
 from chap_5.api.mdp.mdp.mdp_transition import MDPTransition
 from chap_5.api.mdp.mdp.reward import RewardModel

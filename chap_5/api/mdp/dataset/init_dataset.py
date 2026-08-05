@@ -1,11 +1,11 @@
 from sqlalchemy import text
 
 from chap_5.api.mdp.config import BOOTSTRAP, RAW_DIR
-from chap_5.api.mdp.dataset.format_to_npy import build_sequences
-from chap_5.api.mdp.dataset.init_genre_cache import init_genre_cache
-from chap_5.api.mdp.dataset.normalize_data import preprocess
+from chap_5.api.mdp.dataset.helper.format_to_npy import build_sequences
+from chap_5.api.mdp.dataset.collumn_setup.init_genre_cache import init_genre_cache
+from chap_5.api.mdp.dataset.helper.normalize_data import preprocess
 from chap_5.api.mdp.dataset.retrieve_data import DatasetRetriever
-from chap_5.api.mdp.dataset.seed_database import (
+from chap_5.api.mdp.dataset.collumn_setup.seed_database import (
     create_mdp_tables,
     drop_data_folder,
     get_engine,

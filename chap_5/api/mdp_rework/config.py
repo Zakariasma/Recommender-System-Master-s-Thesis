@@ -16,9 +16,10 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 BOOTSTRAP = os.getenv("BOOTSTRAP", "False").lower() in ("true", "1", "t")
 
 K = int(os.getenv("MDP_K", 3))
-FRACTION = float(os.getenv("MDP_FRACTION", 1.0))
+FRACTION = float(os.getenv("MDP_FRACTION", 0.01))
 MAX_SKIP = int(os.getenv("MDP_MAX_SKIP", 10))
 BATCH_SIZE = int(os.getenv("MDP_BATCH_SIZE", 1_000_000))
+BITS_MOVIE_REPRESENTATION = 15
 
 GAMMA_BOOST = float(os.getenv("MDP_GAMMA_BOOST", 1 / 1000))
 GAMMA_RL = float(os.getenv("MDP_GAMMA_RL", 0.9))

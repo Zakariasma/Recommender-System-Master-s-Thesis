@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 
 from chap_5.api.mdp.config import DATABASE_URL
-from chap_5.api.mdp.dataset.setup_mdp_tables import create_mdp_tables
+from chap_5.api.mdp.dataset.collumn_setup.setup_mdp_tables import create_mdp_tables
 
 
 metadata = MetaData()

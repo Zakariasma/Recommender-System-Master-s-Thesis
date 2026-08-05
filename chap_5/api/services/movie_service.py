@@ -2,8 +2,9 @@ import json
 from sqlalchemy import text, bindparam
 from sqlalchemy.engine import Engine
 
-from chap_5.api.mdp.dataset.seed_database import get_engine
-from chap_5.api.schemas.movie import MovieRow, MoviePreview, MovieDetails, HeroSlide
+from chap_5.api.mdp.dataset.collumn_setup.seed_database import get_engine
+from chap_5.api.schemas.movie import MovieRow, MoviePreview, MovieDetails
+
 
 class MovieService:
     def __init__(self, engine: Engine | None = None):

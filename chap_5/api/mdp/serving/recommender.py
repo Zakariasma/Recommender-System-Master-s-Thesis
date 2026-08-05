@@ -1,6 +1,6 @@
 from chap_5.api.mdp.config import DATABASE_URL, LIST_SIZE, BOLTZMANN_TEMPERATURE
 from chap_5.api.mdp.helper.kv_store import KeyValueStore
-from chap_5.api.mdp.predictive_model.state_key import encode
+from chap_5.api.mdp.predictive_model.helper.encoder import encode
 from chap_5.api.mdp.predictive_model.predictive_model import PredictiveModel
 from chap_5.api.mdp.serving.boltzmann import boltzmann, sample
 

@@ -1,4 +1,4 @@
-from chap_5.api.mdp.predictive_model.transition_store import TransitionStore
+from chap_5.api.mdp.predictive_model.helper.sql_query import TransitionStore
 from chap_5.api.mdp.predictive_model.improvement.skipping import SkippingModel
 
 

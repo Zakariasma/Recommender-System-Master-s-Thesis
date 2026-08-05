@@ -13,7 +13,7 @@ from sqlalchemy import (
     text,
 )
 
-from chap_5.api.mdp.dataset.seed_database import get_engine
+from chap_5.api.mdp.dataset.collumn_setup.seed_database import get_engine
 
 
 TOP_GENRES_COUNT = 7
