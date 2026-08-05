@@ -1,4 +1,6 @@
 import os
+from collections import defaultdict
+
 from sqlalchemy import create_engine, text, bindparam
 
 from chap_5.api.mdp_rework.shared.create_transition_sql_dict import generate_transition_dict
@@ -140,6 +142,19 @@ def count_states_to_process(engine, k: int) -> int:
 
 def create_similarity_dict(engine, max_k: int):
     generate_transition_dict(engine, max_k, source_suffix="similarity_transition", target_table="similarity_transition_dict")
+
+
+def retrieve_similarity_full_info_for_batch(engine, candidates_set: set) -> dict:
+    if not candidates_set:
+        return {}
+    query = text("SELECT s, successor, proba FROM similarity_transition_dict WHERE s IN :candidates")
+    query = query.bindparams(bindparam("candidates", expanding=True))
+    result = defaultdict(list)
+    with engine.connect() as conn:
+        rows = conn.execute(query, {"candidates": list(candidates_set)}).fetchall()
+    for s_bytes, successor, proba in rows:
+        result[s_bytes].append((successor, proba))
+    return result
 
 def init_similarity_db(engine, k: int):
     setup_state_genres_table(engine, k)

@@ -9,9 +9,8 @@ from chap_5.api.mdp_rework.shared.debug_log import log_progress, reset_progress
 
 
 class SkippingModel:
-    def __init__(self, k: int, fraction: float = 1.0):
+    def __init__(self, k: int):
         self.k = k
-        self.fraction = fraction
         self.counts = defaultdict(lambda: defaultdict(float))
         self.engine = create_skipping_database()
         init_skipping_db(self.engine, self.k)
@@ -24,7 +23,7 @@ class SkippingModel:
             hist_to_list = historiques[i].tolist()
             self._process_sequence(hist_to_list, self.counts)
             self.save()
-            log_progress(i + 1, len_historiques)
+            log_progress(i + 1, len_historiques, 'Skipping')
 
         if self.counts:
             flush_counts(self.engine, self.counts)

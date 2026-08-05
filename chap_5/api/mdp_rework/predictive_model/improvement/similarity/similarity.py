@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from chap_5.api.mdp_rework.config import BATCH_SIZE
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.build_similarity_index import BuildSimilarityIndex
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.data.sql import (
@@ -7,9 +9,9 @@ from chap_5.api.mdp_rework.predictive_model.improvement.similarity.data.sql impo
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.utils.data_operation_manager import \
     generate_subsets_per_state, merge_candidates, build_inverted_index
 from chap_5.api.mdp_rework.predictive_model.improvement.skipping.data.sql import retrieve_successor_for_batch, \
-    create_skipping_database
+    create_skipping_database, retrieve_skipping_full_info_for_batch
 from chap_5.api.mdp_rework.shared.debug_log import reset_progress, log_progress
-from chap_5.api.mdp_rework.shared.endode_to_blob import decode
+from chap_5.api.mdp_rework.shared.endode_to_blob import decode, unpack_transitions
 
 
 class Similarity:
@@ -46,7 +48,7 @@ class Similarity:
                 all_rows_to_insert.clear()
 
             total_processed += len(state_to_process)
-            log_progress(total_processed, total_states)
+            log_progress(total_processed, total_states, 'similarity')
 
         if all_rows_to_insert:
             insert_similarity_transition_batch(self.sim_engine, self.k, all_rows_to_insert)
@@ -88,14 +90,25 @@ class Similarity:
         for cand_list in filtered_candidates.values():
             for cand_bytes, _ in cand_list:
                 candidates_set.add(cand_bytes)
-        sucessor_per_candidates = retrieve_successor_for_batch(self.skip_engine, candidates_set)
-        return sucessor_per_candidates
+
+        raw_successors = retrieve_skipping_full_info_for_batch(self.skip_engine, candidates_set)
+
+        filtered_successors = defaultdict(list)
+
+        for s_bytes, blob_list in raw_successors.items():
+            for succ_blob, proba_blob in blob_list:
+                transitions = unpack_transitions(succ_blob, proba_blob)
+                for s_prime, proba in transitions:
+                    if len(decode(s_prime)) == self.k:
+                        filtered_successors[s_bytes].append((s_prime, proba))
+
+        return dict(filtered_successors)
 
     def _calcul_transition_scores(self, filtered_candidates: dict, sucessors_for_candidates: dict) -> dict:
         dict_scores = {}
 
         for state_base, cand_list in filtered_candidates.items():
-            all_successors, inv_index = build_inverted_index(cand_list, sucessors_for_candidates, self.k)
+            all_successors, inv_index = build_inverted_index(cand_list, sucessors_for_candidates)
             fstate_scores = {}
             for s_prime in all_successors:
                 score_s_to_sprime = 0.0

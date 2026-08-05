@@ -22,7 +22,7 @@ class MultiSize:
 
         create_transition_dict(engine, self.k)
 
-    def process_similarity(self):
+    def run_similarity(self):
         engine = create_similarity_database()
         setup_similarity_dict_table(engine)
 
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     multi = MultiSize(k=3)
 
     multi.run_skipping()
-    multi.process_similarity()
+    multi.run_similarity()

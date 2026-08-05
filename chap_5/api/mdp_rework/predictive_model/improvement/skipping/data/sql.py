@@ -1,5 +1,7 @@
 import os
 import struct
+from collections import defaultdict
+
 from sqlalchemy import create_engine, text, bindparam
 
 from chap_5.api.mdp_rework.shared.create_transition_sql_dict import generate_transition_dict
@@ -124,6 +126,26 @@ def fetch_distinct_states(engine, k: int):
                 break
             for (state_bytes,) in rows:
                 yield state_bytes
+
+def retrieve_distinct_states(engine, k: int):
+    table_name = f"k{k}_transition"
+    query = text(f"SELECT DISTINCT s FROM {table_name}")
+    with engine.connect() as conn:
+        result = conn.execute(query)
+        return [row[0] for row in result.fetchall()]
+
+
+def retrieve_skipping_full_info_for_batch(engine, candidates_set: set) -> dict:
+    if not candidates_set:
+        return {}
+    query = text("SELECT s, successor, proba FROM skipping_transition_dict WHERE s IN :candidates")
+    query = query.bindparams(bindparam("candidates", expanding=True))
+    result = defaultdict(list)
+    with engine.connect() as conn:
+        rows = conn.execute(query, {"candidates": list(candidates_set)}).fetchall()
+    for s_bytes, successor, proba in rows:
+        result[s_bytes].append((successor, proba))
+    return result
 
 def init_skipping_db(engine, k: int):
     setup_counts_table(engine)

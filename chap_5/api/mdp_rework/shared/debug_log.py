@@ -1,7 +1,7 @@
 import time
 
 
-def log_progress(current: int, total: int):
+def log_progress(current: int, total: int, func_name: str):
     now = time.perf_counter()
 
     if not hasattr(log_progress, "start_time"):
@@ -13,7 +13,7 @@ def log_progress(current: int, total: int):
         speed = current / elapsed if elapsed > 0 else 0
         remaining = (total - current) / speed if speed > 0 else 0
 
-        print(f"  {current:,}/{total:,} | {speed:,.0f} seq/s | Temps restant: {remaining:,.0f}s")
+        print(f"{func_name }   {current:,}/{total:,} | {speed:,.0f} seq/s | Temps restant: {remaining:,.0f}s")
 
         log_progress.last_print_time = now
 
