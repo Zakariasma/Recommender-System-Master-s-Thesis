@@ -4,8 +4,10 @@ from chap_5.api.mdp_rework.config import BITS_MOVIE_REPRESENTATION
 
 MASK_BITS = (1 << BITS_MOVIE_REPRESENTATION) - 1
 
+
 def as_tuple(s):
     return (s,) if isinstance(s, int) else tuple(map(int, s))
+
 
 def encode(items):
     items = as_tuple(items)
@@ -14,6 +16,7 @@ def encode(items):
         packed_int = (packed_int << BITS_MOVIE_REPRESENTATION) | item
     total_bits = len(items) * BITS_MOVIE_REPRESENTATION
     return packed_int.to_bytes((total_bits + 7) // 8, 'big')
+
 
 def decode(s_bytes):
     if not s_bytes:
@@ -65,3 +68,57 @@ def unpack_transitions(succ_blob: bytes, proba_blob: bytes) -> list:
             offset_proba += 4
 
     return transitions
+
+
+def unpack_full_info(full_info_batch: dict) -> dict:
+    """
+    Décode les BLOBs structurés pour tout un batch d'états.
+    Retourne un dict: {s_bytes: [(s_prime, tr_pred, reward, p_reco, p_not_reco), ...]}
+    """
+    decoded_dict = {}
+
+    for s_bytes, info in full_info_batch.items():
+        s_blob = info["s_"]
+        tr_blob = info["tr_predict"]
+        r_blob = info["reward"]
+        pr_blob = info["proba_reco"]
+        pnr_blob = info["proba_not_reco"]
+
+        transitions = []
+        if not s_blob or len(s_blob) < 4:
+            decoded_dict[s_bytes] = transitions
+            continue
+
+        offset_s = 0
+        offset_f = 0
+
+        num_k = struct.unpack_from('i', s_blob, offset_s)[0]
+        offset_s += 4
+        offset_f += 4
+
+        for _ in range(num_k):
+            k = struct.unpack_from('i', s_blob, offset_s)[0]
+            offset_s += 4
+            offset_f += 4
+
+            num_trans = struct.unpack_from('i', s_blob, offset_s)[0]
+            offset_s += 4
+            offset_f += 4
+
+            state_byte_size = (k * BITS_MOVIE_REPRESENTATION + 7) // 8
+
+            for _ in range(num_trans):
+                s_prime = s_blob[offset_s: offset_s + state_byte_size]
+                tr_pred = struct.unpack_from('f', tr_blob, offset_f)[0]
+                reward = struct.unpack_from('f', r_blob, offset_f)[0]
+                p_reco = struct.unpack_from('f', pr_blob, offset_f)[0]
+                p_not_reco = struct.unpack_from('f', pnr_blob, offset_f)[0]
+
+                transitions.append((s_prime, tr_pred, reward, p_reco, p_not_reco))
+
+                offset_s += state_byte_size
+                offset_f += 4
+
+        decoded_dict[s_bytes] = transitions
+
+    return decoded_dict

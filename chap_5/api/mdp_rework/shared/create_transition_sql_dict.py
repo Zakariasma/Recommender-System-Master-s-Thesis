@@ -1,120 +1,113 @@
-import struct
+import orjson
+from collections import defaultdict
 from sqlalchemy import text, bindparam
-from chap_5.api.mdp_rework.shared.endode_to_blob import decode, encode
+from chap_5.api.mdp_rework.shared.debug_log import log_progress, reset_progress
 
 
-def generate_substates(s_bytes: bytes) -> dict:
-    """Génère les sous-états de taille k à 1 en décalant la fenêtre."""
+def _dumps(obj) -> str:
+    return orjson.dumps(obj).decode()
+
+
+def _loads(data):
+    return orjson.loads(data)
+
+
+def generate_substates(s_tuple: tuple) -> dict:
     substates = {}
-    items_tuple = decode(s_bytes)
-    k = len(items_tuple)
-
+    k = len(s_tuple)
     while k > 0:
-        substates[k] = encode(items_tuple[-k:])
+        substates[k] = s_tuple[-k:]
         k -= 1
     return substates
 
 
-# On ajoute source_suffix en paramètre
-def fetch_transitions_for_batch(engine, s_bytes_list: list, source_suffix: str) -> dict:
-    """
-    Récupère les transitions en batch pour tout un groupe d'états s.
-    Retourne un dict: { s_bytes_original: { k: [(s_, prob), ...] } }
-    """
-    sub_to_orig = {}
-    for s_bytes in s_bytes_list:
-        substates = generate_substates(s_bytes)
-        for k, sub_s in substates.items():
-            if k not in sub_to_orig:
-                sub_to_orig[k] = {}
-            sub_to_orig[k][sub_s] = s_bytes
+def fetch_transitions_for_batch(conn, s_tuples: list, source_suffix: str) -> dict:
+    sub_to_orig = defaultdict(lambda: defaultdict(list))
+    for s_tuple in s_tuples:
+        for k, sub_s_tuple in generate_substates(s_tuple).items():
+            sub_s_json = _dumps(list(sub_s_tuple))
+            sub_to_orig[k][sub_s_json].append(s_tuple)
 
-    transitions_by_s = {}
+    transitions_by_s = {s_tuple: ([], []) for s_tuple in s_tuples}
 
-    with engine.connect() as conn:
-        for k, sub_map in sub_to_orig.items():
-            # CORRECTION ICI : utilisation de source_suffix
-            table_name = f"k{k}_{source_suffix}"
-            query = text(f"SELECT s, s_, prob FROM {table_name} WHERE s IN :candidates")
-            query = query.bindparams(bindparam("candidates", expanding=True))
+    for k in sorted(sub_to_orig.keys(), reverse=True):
+        sub_map = sub_to_orig[k]
+        table_name = f"k{k}_{source_suffix}"
+        query = text(f"SELECT s, s_, prob FROM {table_name} WHERE s IN :candidates")
+        query = query.bindparams(bindparam("candidates", expanding=True))
+        rows = conn.execute(query, {"candidates": list(sub_map.keys())}).fetchall()
 
-            rows = conn.execute(query, {"candidates": list(sub_map.keys())}).fetchall()
-
-            for sub_s, s_, prob in rows:
-                orig_s = sub_map[sub_s]
-                if orig_s not in transitions_by_s:
-                    transitions_by_s[orig_s] = {}
-                if k not in transitions_by_s[orig_s]:
-                    transitions_by_s[orig_s][k] = []
-                transitions_by_s[orig_s][k].append((s_, prob))
+        for sub_s_json, s_prime_json, prob in rows:
+            for orig_s in sub_map[sub_s_json]:
+                succ, probas = transitions_by_s[orig_s]
+                succ.append(s_prime_json)  # s_prime_json est déjà une chaîne JSON
+                probas.append(prob)
 
     return transitions_by_s
 
 
-def create_row_from_transitions(s_bytes: bytes, transitions_by_k: dict) -> dict:
-    if not transitions_by_k:
+def create_row_from_transitions(s_json: str, succ_probas: tuple) -> dict:
+    successors_json, probas = succ_probas
+    if not successors_json:
         return None
-
-    packed_succ = struct.pack('i', len(transitions_by_k))
-    packed_probs = struct.pack('i', len(transitions_by_k))
-
-    for k in sorted(transitions_by_k.keys(), reverse=True):
-        trans = transitions_by_k[k]
-
-        packed_succ += struct.pack('i', k)
-        packed_succ += struct.pack('i', len(trans))
-
-        packed_probs += struct.pack('i', k)
-        packed_probs += struct.pack('i', len(trans))
-
-        for s_, prob in trans:
-            packed_succ += s_
-            packed_probs += struct.pack('f', prob)
-
-    return {"s": s_bytes, "successor": packed_succ, "proba": packed_probs}
+    return {
+        "s": s_json,
+        "successor": "[" + ",".join(successors_json) + "]",
+        "proba": _dumps(probas),
+    }
 
 
-def insert_rows(engine, target_table: str, rows: list):
+def insert_rows(conn, target_table: str, rows: list):
     if not rows:
         return
-    with engine.begin() as conn:
-        conn.execute(text(f"""
-            INSERT INTO {target_table} (s, successor, proba)
-            VALUES (:s, :successor, :proba) ON CONFLICT(s) DO
-            UPDATE SET
-                successor = excluded.successor,
-                proba = excluded.proba
-        """), rows)
+    conn.execute(text(f"""
+        INSERT INTO {target_table} (s, successor, proba)
+        VALUES (:s, :successor, :proba)
+    """), rows)
 
 
 def generate_transition_dict(engine, max_k: int, source_suffix: str, target_table: str):
     table_name = f"k{max_k}_{source_suffix}"
-    with engine.connect() as conn:
-        try:
-            conn.execute(text(f"SELECT 1 FROM {table_name} LIMIT 1")).fetchall()
-        except Exception:
+
+    with engine.connect() as read_conn:
+        total_count = read_conn.execute(
+            text(f"SELECT COUNT(DISTINCT s) FROM {table_name}")
+        ).scalar()
+        if not total_count:
             return
 
-        result = conn.execute(text(f"SELECT DISTINCT s FROM {table_name}"))
-        batch = []
+        result = read_conn.execute(text(f"SELECT DISTINCT s FROM {table_name}"))
+        processed = 0
+        reset_progress()
 
         while True:
             rows = result.fetchmany(10000)
             if not rows:
                 break
 
-            s_bytes_list = [s_bytes for (s_bytes,) in rows]
+            # on garde le JSON brut pour s, et on decode avec orjson pour la clé tuple
+            s_items = [(tuple(_loads(row[0])), row[0]) for row in rows]
+            s_tuples = [s for s, _ in s_items]
 
-            # On passe source_suffix à la fonction de batch
-            batch_transitions = fetch_transitions_for_batch(engine, s_bytes_list, source_suffix)
+            batch_transitions = fetch_transitions_for_batch(
+                read_conn, s_tuples, source_suffix
+            )
 
-            for s_bytes in s_bytes_list:
-                transitions_by_k = batch_transitions.get(s_bytes, {})
-                row = create_row_from_transitions(s_bytes, transitions_by_k)
+            batch = []
+            for s_tuple, s_json in s_items:
+                row = create_row_from_transitions(s_json, batch_transitions[s_tuple])
                 if row:
                     batch.append(row)
 
-            insert_rows(engine, target_table, batch)
-            batch.clear()
+            if batch:
+                with engine.begin() as write_conn:
+                    insert_rows(write_conn, target_table, batch)
 
-        insert_rows(engine, target_table, batch)
+            processed += len(rows)
+            log_progress(processed, total_count, 'TransitionDict')
+
+    with engine.begin() as conn:
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{target_table}_s "
+            f"ON {target_table}(s)"
+        ))

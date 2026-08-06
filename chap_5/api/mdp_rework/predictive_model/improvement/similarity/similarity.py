@@ -8,10 +8,9 @@ from chap_5.api.mdp_rework.predictive_model.improvement.similarity.data.sql impo
 )
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.utils.data_operation_manager import \
     generate_subsets_per_state, merge_candidates, build_inverted_index
-from chap_5.api.mdp_rework.predictive_model.improvement.skipping.data.sql import retrieve_successor_for_batch, \
-    create_skipping_database, retrieve_skipping_full_info_for_batch
+from chap_5.api.mdp_rework.predictive_model.improvement.skipping.data.sql import \
+    create_skipping_database, retrieve_skipping_full_info_for_batch, retrieve_transition_for_batch
 from chap_5.api.mdp_rework.shared.debug_log import reset_progress, log_progress
-from chap_5.api.mdp_rework.shared.endode_to_blob import decode, unpack_transitions
 
 
 class Similarity:
@@ -64,45 +63,32 @@ class Similarity:
 
     def _score_and_filter_candidates(self, candidates: dict) -> dict:
         retained = {}
-        for state_bytes, cand_list in candidates.items():
-            self_movies = decode(state_bytes)
+        for state_tuple, cand_list in candidates.items():
+            self_movies = state_tuple
             kept = []
 
-            for cand_bytes in cand_list:
-                cand_movies = decode(cand_bytes)
-                max_m = min(len(self_movies), len(cand_movies))
+            for cand_tuple in cand_list:
+                max_m = min(len(self_movies), len(cand_tuple))
 
                 sim_score = 0
                 for m in range(max_m):
-                    if self_movies[m] == cand_movies[m]:
+                    if self_movies[m] == cand_tuple[m]:
                         sim_score += (m + 2)
 
                 if sim_score > 0:
-                    kept.append((cand_bytes, sim_score))
+                    kept.append((cand_tuple, sim_score))
 
             if kept:
-                retained[state_bytes] = kept
+                retained[state_tuple] = kept
 
         return retained
 
     def _get_successor_for_candidates(self, filtered_candidates: dict) -> dict:
         candidates_set = set()
         for cand_list in filtered_candidates.values():
-            for cand_bytes, _ in cand_list:
-                candidates_set.add(cand_bytes)
-
-        raw_successors = retrieve_skipping_full_info_for_batch(self.skip_engine, candidates_set)
-
-        filtered_successors = defaultdict(list)
-
-        for s_bytes, blob_list in raw_successors.items():
-            for succ_blob, proba_blob in blob_list:
-                transitions = unpack_transitions(succ_blob, proba_blob)
-                for s_prime, proba in transitions:
-                    if len(decode(s_prime)) == self.k:
-                        filtered_successors[s_bytes].append((s_prime, proba))
-
-        return dict(filtered_successors)
+            for cand_tuple, _ in cand_list:
+                candidates_set.add(cand_tuple)
+        return retrieve_transition_for_batch(self.skip_engine, candidates_set, self.k)
 
     def _calcul_transition_scores(self, filtered_candidates: dict, sucessors_for_candidates: dict) -> dict:
         dict_scores = {}
@@ -126,5 +112,11 @@ class Similarity:
             if global_score > 0:
                 for fstate, score in fstate_scores.items():
                     proba = score / global_score
-                    rows_to_insert.append((state_base, fstate, proba))
+                    # fstate est un tuple, on le met en liste pour le JSON
+                    rows_to_insert.append((state_base, list(fstate), proba))
         return rows_to_insert
+
+
+if __name__ == "__main__":
+    sim = Similarity(k=1)
+    sim.similarity()
