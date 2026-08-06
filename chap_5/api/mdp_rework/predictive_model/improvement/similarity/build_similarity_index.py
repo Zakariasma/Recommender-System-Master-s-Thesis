@@ -61,6 +61,3 @@ class BuildSimilarityIndex:
         state_genres = self._build_state_genre_index(movie_genres)
         self._build_reverse_index(state_genres)
 
-if __name__ == "__main__":
-    builder = BuildSimilarityIndex(k=1)
-    builder.build_index()

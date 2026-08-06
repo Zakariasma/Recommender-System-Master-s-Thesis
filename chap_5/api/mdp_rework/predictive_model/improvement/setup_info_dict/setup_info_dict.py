@@ -1,7 +1,3 @@
-import time
-from collections import defaultdict
-import orjson
-
 from chap_5.api.mdp_rework.predictive_model.improvement.setup_info_dict.data.pg_sql import fetch_movie_scores, \
     get_pg_engine
 from chap_5.api.mdp_rework.predictive_model.improvement.setup_info_dict.data.sql import create_full_info_database, \
@@ -30,72 +26,55 @@ class SetupInfoDict:
         init_full_info_db(self.full_info_engine)
 
     def _preprocess_successors(self, successors: dict) -> dict:
+        """Convertit le dictionnaire {k: (s_primes, probs)} en {k: {s_prime: prob}}"""
         result = {}
-        for state, (s_primes, probs) in successors.items():
-            by_k = defaultdict(dict)
-            for s_prime, proba in zip(s_primes, probs):
-                by_k[len(s_prime)][tuple(s_prime)] = proba
-            result[state] = dict(by_k)
+        for state, k_dict in successors.items():
+            by_k = {}
+            for k_val, (s_primes, probs) in k_dict.items():
+                by_k[k_val] = {}
+                for s_prime, proba in zip(s_primes, probs):
+                    by_k[k_val][tuple(s_prime)] = proba
+            result[state] = by_k
         return result
 
     def build_info_index(self):
-        t0 = time.perf_counter()
         observed_states = retrieve_distinct_states(self.skipping_engine, self.k)
-        print(f"[TIME] load_states={time.perf_counter() - t0:.2f}s n={len(observed_states)}", flush=True)
-
         total_states = len(observed_states)
 
         batch_rows = []
         processed = 0
         reset_progress()
 
-        for i in range(0, total_states, 100):
-            batch_states = observed_states[i:i + 100]
+        for i in range(0, total_states, 10000):
+            batch_states = observed_states[i:i + 10000]
             batch_set = set(batch_states)
 
-            t0 = time.perf_counter()
             raw_skipping = retrieve_skipping_full_info_for_batch(self.skipping_engine, batch_set)
-            t_skip = time.perf_counter() - t0
             skipping_pre = self._preprocess_successors(raw_skipping)
 
-
-            t0 = time.perf_counter()
             raw_similarity = retrieve_similarity_full_info_for_batch(self.similarity_engine, batch_set)
-            t_sim = time.perf_counter() - t0
             similarity_pre = self._preprocess_successors(raw_similarity)
 
-
-            t0 = time.perf_counter()
             for state_tuple in batch_states:
                 tr_predict = self._build_tr_predict_function(state_tuple, skipping_pre, similarity_pre)
                 if not tr_predict:
                     processed += 1
                     continue
 
-                row = self._create_row(state_tuple, tr_predict)
-                batch_rows.append(row)
+                batch_rows.append(self._create_row(state_tuple, tr_predict))
                 processed += 1
-            t_compute = time.perf_counter() - t0
 
-            t0 = time.perf_counter()
             if batch_rows:
+                # On a retiré le paramètre k car flush gère maintenant les 15 colonnes
                 flush(self.full_info_engine, batch_rows)
                 batch_rows.clear()
-            t_flush = time.perf_counter() - t0
 
             log_progress(processed, total_states, 'SetupInfo')
-            print(
-                f"[TIME] skip={t_skip:.2f}s sim={t_sim:.2f}s "
-                f"compute={t_compute:.2f}s flush={t_flush:.2f}s",
-                flush=True,
-            )
 
         if batch_rows:
             flush(self.full_info_engine, batch_rows)
 
-        t_idx = time.perf_counter()
         create_index(self.full_info_engine)
-        print(f"[TIME] create_index={time.perf_counter() - t_idx:.2f}s", flush=True)
 
     def _create_row(self, state_tuple: tuple, tr_predict: dict) -> dict:
         sum_alpha_p = 0.0
@@ -106,13 +85,19 @@ class SetupInfoDict:
             alpha_cache[r] = alpha
             sum_alpha_p += alpha * proba
 
-        s_prime_list = []
-        tr_predict_list = []
-        reward_list = []
-        proba_reco_list = []
-        proba_not_reco_list = []
+        row = {"s": state_tuple}
+        for k_val in [1, 2, 3]:
+            row[f"k{k_val}_s_"] = []
+            row[f"k{k_val}_tr"] = []
+            row[f"k{k_val}_rew"] = []
+            row[f"k{k_val}_p_reco"] = []
+            row[f"k{k_val}_p_not_reco"] = []
 
         for s_prime_tuple, p_s_r in tr_predict.items():
+            k_val = len(s_prime_tuple)
+            if k_val not in [1, 2, 3]:
+                continue
+
             r = s_prime_tuple[-1]
             alpha = alpha_cache[r]
             beta = self.alpha_beta_calc.compute_beta(alpha, p_s_r, sum_alpha_p)
@@ -123,20 +108,13 @@ class SetupInfoDict:
             immediate_reward = self.movie_scores.get(r, 0.0)
             weighted_reward = immediate_reward * p_s_r
 
-            s_prime_list.append(list(s_prime_tuple))
-            tr_predict_list.append(p_s_r)
-            reward_list.append(weighted_reward)
-            proba_reco_list.append(proba_reco)
-            proba_not_reco_list.append(proba_not_reco)
+            row[f"k{k_val}_s_"].append(list(s_prime_tuple))
+            row[f"k{k_val}_tr"].append(p_s_r)
+            row[f"k{k_val}_rew"].append(weighted_reward)
+            row[f"k{k_val}_p_reco"].append(proba_reco)
+            row[f"k{k_val}_p_not_reco"].append(proba_not_reco)
 
-        return {
-            "s": orjson.dumps(list(state_tuple)).decode('utf-8'),
-            "s_": orjson.dumps(s_prime_list).decode('utf-8'),
-            "tr_predict": orjson.dumps(tr_predict_list).decode('utf-8'),
-            "reward": orjson.dumps(reward_list).decode('utf-8'),
-            "proba_reco": orjson.dumps(proba_reco_list).decode('utf-8'),
-            "proba_not_reco": orjson.dumps(proba_not_reco_list).decode('utf-8')
-        }
+        return row
 
     def get_tr(self, skip_by_k: dict, sim_by_k: dict) -> dict:
         unified_probs = {}
@@ -178,16 +156,14 @@ class SetupInfoDict:
         if valid_k_count == 0:
             return {}
 
-        tr_predict = defaultdict(float)
         weight = 1.0 / valid_k_count
+        tr_predict = {}
 
-        for k_val in range(self.k, 0, -1):
-            probs = unified_probs.get(k_val)
-            if probs:
-                for s_prime_tuple, proba in probs.items():
-                    tr_predict[s_prime_tuple] += weight * proba
+        for probs in unified_probs.values():
+            for s_prime, proba in probs.items():
+                tr_predict[s_prime] = tr_predict.get(s_prime, 0.0) + weight * proba
 
-        return dict(tr_predict)
+        return tr_predict
 
 
 if __name__ == "__main__":

@@ -39,6 +39,4 @@ class MultiSize:
 
 if __name__ == "__main__":
     multi = MultiSize(k=3)
-
-    multi.run_skipping()
-    multi.run_similarity()
+    multi.improve_model()
