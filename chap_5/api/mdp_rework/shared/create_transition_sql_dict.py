@@ -108,6 +108,6 @@ def generate_transition_dict(engine, max_k: int, source_suffix: str, target_tabl
 
     with engine.begin() as conn:
         conn.execute(text(
-            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{target_table}_s "
-            f"ON {target_table}(s)"
+            f"CREATE INDEX IF NOT EXISTS idx_{target_table}_s_cover "
+            f"ON {target_table}(s, successor, proba)"
         ))

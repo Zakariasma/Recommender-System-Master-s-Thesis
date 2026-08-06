@@ -12,7 +12,7 @@ class MultiSize:
     def __init__(self, k: int):
         self.k = k
 
-    def run_skipping(self):
+    def _run_skipping(self):
         engine = create_skipping_database()
         setup_skiping_transition_table(engine)
 
@@ -22,7 +22,7 @@ class MultiSize:
 
         create_transition_dict(engine, self.k)
 
-    def run_similarity(self):
+    def _run_similarity(self):
         engine = create_similarity_database()
         setup_similarity_dict_table(engine)
 
@@ -31,6 +31,10 @@ class MultiSize:
             sim.similarity()
 
         create_similarity_dict(engine, self.k)
+
+    def improve_model(self):
+        self._run_skipping()
+        self._run_similarity()
 
 
 if __name__ == "__main__":

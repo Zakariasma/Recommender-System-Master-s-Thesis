@@ -29,6 +29,15 @@ class SetupInfoDict:
         self.full_info_engine = create_full_info_database()
         init_full_info_db(self.full_info_engine)
 
+    def _preprocess_successors(self, successors: dict) -> dict:
+        result = {}
+        for state, (s_primes, probs) in successors.items():
+            by_k = defaultdict(dict)
+            for s_prime, proba in zip(s_primes, probs):
+                by_k[len(s_prime)][tuple(s_prime)] = proba
+            result[state] = dict(by_k)
+        return result
+
     def build_info_index(self):
         t0 = time.perf_counter()
         observed_states = retrieve_distinct_states(self.skipping_engine, self.k)
@@ -40,28 +49,31 @@ class SetupInfoDict:
         processed = 0
         reset_progress()
 
-        for i in range(0, total_states, 10000):
-            batch_states = observed_states[i:i + 10000]
+        for i in range(0, total_states, 100):
+            batch_states = observed_states[i:i + 100]
             batch_set = set(batch_states)
 
             t0 = time.perf_counter()
-            skipping_successors = retrieve_skipping_full_info_for_batch(self.skipping_engine, batch_set)
+            raw_skipping = retrieve_skipping_full_info_for_batch(self.skipping_engine, batch_set)
             t_skip = time.perf_counter() - t0
+            skipping_pre = self._preprocess_successors(raw_skipping)
+
 
             t0 = time.perf_counter()
-            similarity_successors = retrieve_similarity_full_info_for_batch(self.similarity_engine, batch_set)
+            raw_similarity = retrieve_similarity_full_info_for_batch(self.similarity_engine, batch_set)
             t_sim = time.perf_counter() - t0
+            similarity_pre = self._preprocess_successors(raw_similarity)
+
 
             t0 = time.perf_counter()
             for state_tuple in batch_states:
-                tr_predict = self._build_tr_predict_function(state_tuple, skipping_successors, similarity_successors)
+                tr_predict = self._build_tr_predict_function(state_tuple, skipping_pre, similarity_pre)
                 if not tr_predict:
                     processed += 1
                     continue
 
                 row = self._create_row(state_tuple, tr_predict)
                 batch_rows.append(row)
-
                 processed += 1
             t_compute = time.perf_counter() - t0
 
@@ -102,7 +114,6 @@ class SetupInfoDict:
 
         for s_prime_tuple, p_s_r in tr_predict.items():
             r = s_prime_tuple[-1]
-
             alpha = alpha_cache[r]
             beta = self.alpha_beta_calc.compute_beta(alpha, p_s_r, sum_alpha_p)
 
@@ -127,16 +138,8 @@ class SetupInfoDict:
             "proba_not_reco": orjson.dumps(proba_not_reco_list).decode('utf-8')
         }
 
-    def transform_successor_to_dict(self, state_tuple: tuple, successors: dict) -> dict:
-        res = defaultdict(dict)
-        if state_tuple in successors:
-            for s_prime_tuple, proba in successors[state_tuple]:
-                k_val = len(s_prime_tuple)
-                res[k_val][s_prime_tuple] = proba
-        return res
-
     def get_tr(self, skip_by_k: dict, sim_by_k: dict) -> dict:
-        unified_probs = defaultdict(dict)
+        unified_probs = {}
         for k_val in range(self.k, 0, -1):
             skip_k = skip_by_k.get(k_val, {})
             sim_k = sim_by_k.get(k_val, {})
@@ -153,7 +156,8 @@ class SetupInfoDict:
             else:
                 continue
 
-            all_s_primes = set(skip_k.keys()) | set(sim_k.keys())
+            all_s_primes = skip_k.keys() | sim_k.keys()
+            unified_probs[k_val] = {}
 
             for s_prime_tuple in all_s_primes:
                 p_skip = skip_k.get(s_prime_tuple, 0.0)
@@ -162,16 +166,15 @@ class SetupInfoDict:
 
         return unified_probs
 
-    def _build_tr_function(self, state_tuple: tuple, skipping_successors: dict, similarity_successors: dict) -> dict:
-        skip_by_k = self.transform_successor_to_dict(state_tuple, skipping_successors)
-        sim_by_k = self.transform_successor_to_dict(state_tuple, similarity_successors)
+    def _build_tr_function(self, state_tuple: tuple, skipping_pre: dict, similarity_pre: dict) -> dict:
+        skip_by_k = skipping_pre.get(state_tuple, {})
+        sim_by_k = similarity_pre.get(state_tuple, {})
         return self.get_tr(skip_by_k, sim_by_k)
 
-    def _build_tr_predict_function(self, state_tuple: tuple, skipping_successors: dict,
-                                   similarity_successors: dict) -> dict:
-        unified_probs = self._build_tr_function(state_tuple, skipping_successors, similarity_successors)
+    def _build_tr_predict_function(self, state_tuple: tuple, skipping_pre: dict, similarity_pre: dict) -> dict:
+        unified_probs = self._build_tr_function(state_tuple, skipping_pre, similarity_pre)
 
-        valid_k_count = sum(1 for k_val in range(self.k, 0, -1) if unified_probs.get(k_val))
+        valid_k_count = len(unified_probs)
         if valid_k_count == 0:
             return {}
 

@@ -29,6 +29,7 @@ def create_similarity_database():
     @event.listens_for(engine, "connect")
     def set_pragmas(dbapi_conn, _):
         cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA wal_autocheckpoint = 0")
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA synchronous=NORMAL")
         cur.execute("PRAGMA temp_store=MEMORY")
@@ -204,21 +205,18 @@ def create_similarity_dict(engine, max_k: int):
 def retrieve_similarity_full_info_for_batch(engine, candidates_set: set) -> dict:
     if not candidates_set:
         return {}
-    candidates_list = [_dumps(list(c)) for c in candidates_set]
-    query = text(
-        "SELECT s, successor, proba FROM similarity_transition_dict WHERE s IN :candidates"
-    )
+
+    candidates_list = [orjson.dumps(list(c)).decode('utf-8') for c in candidates_set]
+
+    query = text("SELECT s, successor, proba FROM similarity_transition_dict WHERE s IN :candidates")
     query = query.bindparams(bindparam("candidates", expanding=True))
-    result = defaultdict(list)
+
+    result = {}
     with engine.connect() as conn:
         rows = conn.execute(query, {"candidates": candidates_list}).fetchall()
 
     for s, successor, proba in rows:
-        s_tuple = tuple(_loads(s))
-        succ_list = _loads(successor)
-        proba_list = _loads(proba)
-        for s_prime, p in zip(succ_list, proba_list):
-            result[s_tuple].append((tuple(s_prime), p))
+        result[tuple(orjson.loads(s))] = (orjson.loads(successor), orjson.loads(proba))
 
     return result
 

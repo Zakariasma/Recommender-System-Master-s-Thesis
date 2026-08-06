@@ -10,8 +10,9 @@ DB_PATH = os.path.join(
 def create_full_info_database():
     engine = create_engine(f"sqlite:///{DB_PATH}")
     with engine.begin() as conn:
+        conn.execute(text("PRAGMA wal_autocheckpoint = 0"))
         conn.execute(text("PRAGMA journal_mode = WAL"))
-        conn.execute(text("PRAGMA synchronous = NORMAL"))
+        conn.execute(text("PRAGMA synchronous = OFF"))
         conn.execute(text("PRAGMA temp_store = MEMORY"))
         conn.execute(text("PRAGMA cache_size = -2000000"))
         conn.execute(text("PRAGMA mmap_size = 268435456"))
