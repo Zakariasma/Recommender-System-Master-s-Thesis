@@ -39,11 +39,11 @@ def decode_proba_list(blob: bytes) -> np.ndarray:
         return np.array([], dtype='>f4')
     return np.frombuffer(blob, dtype='>f4')
 
-# --- Format FIXED ---
 def encode_successors_fixed(s_primes: list) -> bytes:
     if not s_primes:
         return b''
-    return np.array(s_primes, dtype='>u2').tobytes()
+    flat = [v for s in s_primes for v in s]
+    return _get_state_struct(len(flat)).pack(*flat)
 
 def decode_successors_fixed(blob: bytes, k: int) -> np.ndarray:
     """Retourne un tableau numpy 2D de shape (n, k) pour permettre la vectorisation"""

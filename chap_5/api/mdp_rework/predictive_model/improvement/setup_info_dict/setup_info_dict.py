@@ -1,5 +1,3 @@
-from chap_5.api.mdp_rework.predictive_model.improvement.setup_info_dict.data.pg_sql import fetch_movie_scores, \
-    get_pg_engine
 from chap_5.api.mdp_rework.predictive_model.improvement.setup_info_dict.data.sql import create_full_info_database, \
     init_full_info_db, flush, create_index
 from chap_5.api.mdp_rework.predictive_model.improvement.setup_info_dict.utils.get_popularity_dict import get_item_counts
@@ -16,8 +14,6 @@ class SetupInfoDict:
         self.k = k
         self.skipping_engine = create_skipping_database()
         self.similarity_engine = create_similarity_database()
-        self.pg_engine = get_pg_engine()
-        self.movie_scores = fetch_movie_scores(self.pg_engine)
 
         item_counts, total_items = get_item_counts()
         self.alpha_beta_calc = AlphaBeta(item_counts, total_items)
@@ -26,7 +22,6 @@ class SetupInfoDict:
         init_full_info_db(self.full_info_engine)
 
     def _preprocess_successors(self, successors: dict) -> dict:
-        """Convertit le dictionnaire {k: (s_primes, probs)} en {k: {s_prime: prob}}"""
         result = {}
         for state, k_dict in successors.items():
             by_k = {}
@@ -65,7 +60,6 @@ class SetupInfoDict:
                 processed += 1
 
             if batch_rows:
-                # On a retiré le paramètre k car flush gère maintenant les 15 colonnes
                 flush(self.full_info_engine, batch_rows)
                 batch_rows.clear()
 
@@ -89,7 +83,6 @@ class SetupInfoDict:
         for k_val in [1, 2, 3]:
             row[f"k{k_val}_s_"] = []
             row[f"k{k_val}_tr"] = []
-            row[f"k{k_val}_rew"] = []
             row[f"k{k_val}_p_reco"] = []
             row[f"k{k_val}_p_not_reco"] = []
 
@@ -105,12 +98,8 @@ class SetupInfoDict:
             proba_reco = alpha * p_s_r
             proba_not_reco = beta * p_s_r
 
-            immediate_reward = self.movie_scores.get(r, 0.0)
-            weighted_reward = immediate_reward * p_s_r
-
             row[f"k{k_val}_s_"].append(list(s_prime_tuple))
             row[f"k{k_val}_tr"].append(p_s_r)
-            row[f"k{k_val}_rew"].append(weighted_reward)
             row[f"k{k_val}_p_reco"].append(proba_reco)
             row[f"k{k_val}_p_not_reco"].append(proba_not_reco)
 

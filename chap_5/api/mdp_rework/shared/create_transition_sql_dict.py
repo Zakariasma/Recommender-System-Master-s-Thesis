@@ -1,104 +1,126 @@
+import sqlite3
 from collections import defaultdict
-from sqlalchemy import text, bindparam
-from chap_5.api.mdp_rework.shared.binary_encoder import (
-    decode_state, encode_state,
-    encode_successors_fixed, encode_proba_list
-)
+
+from chap_5.api.mdp_rework.shared.binary_encoder import encode_proba_list
 from chap_5.api.mdp_rework.shared.debug_log import log_progress, reset_progress
 
 
-def generate_substates(s_tuple: tuple) -> dict:
-    """Génère les sous-états de taille k à 1 en décalant la fenêtre."""
-    substates = {}
-    k = len(s_tuple)
-    while k > 0:
-        substates[k] = s_tuple[-k:]
-        k -= 1
-    return substates
+def _get_conn(db_path: str) -> sqlite3.Connection:
+    """Ouvre une connexion native sqlite3 et applique les PRAGMAs d'optimisation."""
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA cache_size=-2000000")
+    conn.execute("PRAGMA mmap_size=268435456")
+    return conn
 
-
-def fetch_transitions_for_k(conn, s_blobs: list, k: int, source_suffix: str) -> dict:
-    """Récupère les transitions pour une taille k donnée en générant les sous-états."""
-    sub_to_orig = defaultdict(list)  # <-- CORRECTION ICI
-    for s_blob in s_blobs:
-        s_tuple = decode_state(s_blob)
-        sub_s_tuple = s_tuple[-k:] if k <= len(s_tuple) else s_tuple
-        sub_s_blob = encode_state(sub_s_tuple)
-        sub_to_orig[sub_s_blob].append(s_blob)
-
-    table_name = f"k{k}_{source_suffix}"
-    query = text(f"SELECT s, s_, prob FROM {table_name} WHERE s IN :candidates")
-    query = query.bindparams(bindparam("candidates", expanding=True))
-
-    trans_map = {s: ([], []) for s in s_blobs}
-
-    candidates = list(sub_to_orig.keys())
-    for i in range(0, len(candidates), 500):
-        chunk = candidates[i:i + 500]
-        rows = conn.execute(query, {"candidates": chunk}).fetchall()
-        for sub_s_blob, s_prime_blob, prob in rows:
-            for orig_s_blob in sub_to_orig[sub_s_blob]:
-                if orig_s_blob in trans_map:
-                    succ, probas = trans_map[orig_s_blob]
-                    succ.append(decode_state(s_prime_blob))
-                    probas.append(prob)
-
-    return trans_map
 
 def insert_rows(conn, target_table: str, rows: list):
     if not rows: return
-    conn.execute(text(f"""
+    data = [
+        (r["s"], r["k1_successor"], r["k1_proba"],
+         r["k2_successor"], r["k2_proba"],
+         r["k3_successor"], r["k3_proba"])
+        for r in rows
+    ]
+    conn.executemany(f"""
         INSERT INTO {target_table} (s, k1_successor, k1_proba, k2_successor, k2_proba, k3_successor, k3_proba)
-        VALUES (:s, :k1_successor, :k1_proba, :k2_successor, :k2_proba, :k3_successor, :k3_proba)
-    """), rows)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, data)
 
 
-def generate_transition_dict(engine, max_k: int, source_suffix: str, target_table: str):
+def generate_transition_dict(db_path: str, max_k: int, source_suffix: str, target_table: str):
     table_name = f"k{max_k}_{source_suffix}"
-    with engine.connect() as read_conn:
-        total_count = read_conn.execute(text(f"SELECT COUNT(DISTINCT s) FROM {table_name}")).scalar()
+
+    read_conn = _get_conn(db_path)
+    write_conn = _get_conn(db_path)
+    try:
+        stream_cur = read_conn.cursor()
+        query_cur = read_conn.cursor()
+
+        # Table temp de candidats, créée une seule fois et réutilisée à chaque batch
+        read_conn.execute("CREATE TEMP TABLE candidates (k INTEGER, blob BLOB)")
+        read_conn.execute("CREATE INDEX idx_candidates_k_blob ON candidates(k, blob)")
+
+        stream_cur.execute(f"SELECT COUNT(DISTINCT s) FROM {table_name}")
+        total_count = stream_cur.fetchone()[0]
         if not total_count: return
 
-        result = read_conn.execute(text(f"SELECT DISTINCT s FROM {table_name}"))
+        stream_cur.execute(f"SELECT DISTINCT s FROM {table_name}")
         processed = 0
         reset_progress()
 
         while True:
-            rows = result.fetchmany(10000)
+            rows = stream_cur.fetchmany(10000)
             if not rows: break
 
             s_blobs = [row[0] for row in rows]
 
-            # Récupérer les transitions pour k=1, k=2, k=3 en utilisant les sous-états
-            trans_k1 = fetch_transitions_for_k(read_conn, s_blobs, 1, source_suffix)
-            trans_k2 = fetch_transitions_for_k(read_conn, s_blobs, 2, source_suffix)
-            trans_k3 = fetch_transitions_for_k(read_conn, s_blobs, 3, source_suffix)
+            sub_maps = {1: defaultdict(list), 2: defaultdict(list), 3: defaultdict(list)}
+            for s_blob in s_blobs:
+                sub_maps[1][s_blob[4:]].append(s_blob)
+                sub_maps[2][s_blob[2:]].append(s_blob)
+                sub_maps[3][s_blob].append(s_blob)
 
+            batch_trans = {s: {1: ([], []), 2: ([], []), 3: ([], [])} for s in s_blobs}
+
+            # --- Population de la table candidats en une fois ---
+            read_conn.execute("DELETE FROM candidates")
+            candidate_rows = [
+                (k_val, blob)
+                for k_val, sub_map in sub_maps.items()
+                for blob in sub_map.keys()
+            ]
+            read_conn.executemany("INSERT INTO candidates (k, blob) VALUES (?, ?)", candidate_rows)
+
+            fetched_by_k = {}
+            for k_val in [1, 2, 3]:
+                query_cur.execute(f"""
+                    SELECT t.s, t.s_, t.prob
+                    FROM k{k_val}_{source_suffix} t
+                    JOIN candidates c ON c.blob = t.s AND c.k = ?
+                """, (k_val,))
+                fetched_by_k[k_val] = query_cur.fetchall()
+
+            # --- Collecte : on garde les blobs bruts, aucun decode ---
+            for k_val in [1, 2, 3]:
+                sub_map = sub_maps[k_val]
+                for sub_s_blob, s_prime_blob, prob in fetched_by_k[k_val]:
+                    for orig_s_blob in sub_map[sub_s_blob]:
+                        succ, probas = batch_trans[orig_s_blob][k_val]
+                        succ.append(s_prime_blob)
+                        probas.append(prob)
+
+            # --- Encode : join des blobs (identique à encode_successors_fixed) ---
             batch = []
             for s_blob in s_blobs:
-                s1, p1 = trans_k1.get(s_blob, ([], []))
-                s2, p2 = trans_k2.get(s_blob, ([], []))
-                s3, p3 = trans_k3.get(s_blob, ([], []))
-
-                # S'il n'y a aucune transition du tout, on skip
+                s1, p1 = batch_trans[s_blob][1]
+                s2, p2 = batch_trans[s_blob][2]
+                s3, p3 = batch_trans[s_blob][3]
                 if not s1 and not s2 and not s3: continue
-
                 batch.append({
                     "s": s_blob,
-                    "k1_successor": encode_successors_fixed(s1),
-                    "k1_proba": encode_proba_list(p1),
-                    "k2_successor": encode_successors_fixed(s2),
-                    "k2_proba": encode_proba_list(p2),
-                    "k3_successor": encode_successors_fixed(s3),
-                    "k3_proba": encode_proba_list(p3)
+                    "k1_successor": b"".join(s1), "k1_proba": encode_proba_list(p1),
+                    "k2_successor": b"".join(s2), "k2_proba": encode_proba_list(p2),
+                    "k3_successor": b"".join(s3), "k3_proba": encode_proba_list(p3)
                 })
 
             if batch:
-                with engine.begin() as write_conn:
+                try:
+                    write_conn.execute("BEGIN TRANSACTION")
                     insert_rows(write_conn, target_table, batch)
+                    write_conn.commit()
+                except Exception:
+                    write_conn.rollback()
+                    raise
 
             processed += len(rows)
             log_progress(processed, total_count, 'TransitionDict')
 
-    with engine.begin() as conn:
-        conn.execute(text(f"CREATE INDEX IF NOT EXISTS idx_{target_table}_s ON {target_table}(s)"))
+        write_conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{target_table}_s ON {target_table}(s)")
+        write_conn.execute("ANALYZE")
+        write_conn.commit()
+    finally:
+        read_conn.close()
+        write_conn.close()

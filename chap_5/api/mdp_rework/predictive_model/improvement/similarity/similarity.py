@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 from chap_5.api.mdp_rework.config import BATCH_SIZE
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.build_similarity_index import BuildSimilarityIndex
 from chap_5.api.mdp_rework.predictive_model.improvement.similarity.data.sql import (
@@ -112,7 +110,6 @@ class Similarity:
             if global_score > 0:
                 for fstate, score in fstate_scores.items():
                     proba = score / global_score
-                    # fstate est un tuple, on le met en liste pour le JSON
                     rows_to_insert.append((state_base, list(fstate), proba))
         return rows_to_insert
 
