@@ -2,7 +2,7 @@ import json
 from sqlalchemy import text, bindparam
 from sqlalchemy.engine import Engine
 
-from chap_5.api.mdp.dataset.collumn_setup.seed_database import get_engine
+from chap_5.api.mdp.dataset.utils.fill_up_db import get_engine
 from chap_5.api.schemas.movie import MovieRow, MoviePreview, MovieDetails
 
 
@@ -131,14 +131,11 @@ class MovieService:
         ]
 
     def get_history(self, limit: int = 20) -> list[MoviePreview]:
-        """Retourne les N derniers films vus (uniques), du plus récent au plus ancien."""
         query = text("""
-                     SELECT m.id, m.title, m.poster
-                     FROM movies m
-                              INNER JOIN (SELECT movie_id, MAX(viewed_at) AS last_viewed
-                                          FROM movie_history
-                                          GROUP BY movie_id) h ON h.movie_id = m.id
-                     ORDER BY h.last_viewed DESC LIMIT :limit
+                     SELECT m.id, m.title, m.poster, mh.viewed_at
+                     FROM movie_history mh
+                              JOIN movies m ON m.id = mh.movie_id
+                     ORDER BY mh.viewed_at DESC LIMIT :limit
                      """)
 
         with self.engine.connect() as conn:

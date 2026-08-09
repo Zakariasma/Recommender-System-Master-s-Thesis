@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from chap_5.api.schemas.movie import MovieRow, MovieDetails, MoviePreview, HeroSlide
 from chap_5.api.services.movie_service import MovieService
 from chap_5.api.services.hero_recommendation_service import HeroRecommendationService
-from chap_5.api.mdp.predictive_model.predictive_model import PredictiveModel
 from chap_5.api.mdp.serving.recommender import Recommender
 
 router = APIRouter(prefix="/movies", tags=["movies"])
@@ -15,8 +14,7 @@ def get_movie_service() -> MovieService:
 def get_hero_recommendation_service(
     service: MovieService = Depends(get_movie_service),
 ) -> HeroRecommendationService:
-    predictive_model = PredictiveModel()
-    recommender = Recommender(predictive_model)
+    recommender = Recommender()
     return HeroRecommendationService(engine=service.engine, recommender=recommender)
 
 

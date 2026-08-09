@@ -6,18 +6,18 @@ CORE_DATA_DIR = Path(__file__).resolve().parent
 ROOT_DIR = CORE_DATA_DIR.parents[2]
 load_dotenv(ROOT_DIR / ".env")
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "master")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "master")
+DB_USER = os.getenv("POSTGRES_USER", "postgres")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-BOOTSTRAP = os.getenv("BOOTSTRAP", "False").lower() in ("true", "1", "t")
+BOOTSTRAP = os.getenv("BOOTSTRAP", "true").lower() in ("true", "1", "t")
 
 K = int(os.getenv("MDP_K", 3))
-FRACTION = float(os.getenv("MDP_FRACTION", 1.0))
-MAX_SKIP = int(os.getenv("MDP_MAX_SKIP", 10))
+FRACTION = float(os.getenv("MDP_FRACTION", 0.001))
+MAX_SKIP = int(os.getenv("MDP_MAX_SKIP", 5))
 BATCH_SIZE = int(os.getenv("MDP_BATCH_SIZE", 1_000_000))
 
 GAMMA_BOOST = float(os.getenv("MDP_GAMMA_BOOST", 1 / 1000))

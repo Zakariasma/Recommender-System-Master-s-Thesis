@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { MovieRowHorizontal } from "../../../welcome_grid/components/grid/MovieRowHorizontal.tsx";
-import type { MoviePreview } from "../../../welcome_grid/types/MoviePreview.ts";
+import { MovieRowHorizontal } from "../../../grid/components/grid/MovieRowHorizontal.tsx";
+import type { MoviePreview } from "../../../grid/types/MoviePreview.ts";
 
 type HistoryModalProps = {
     isOpen: boolean;

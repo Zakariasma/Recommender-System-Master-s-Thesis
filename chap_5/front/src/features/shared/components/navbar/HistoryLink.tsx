@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type {MoviePreview} from "../../../welcome_grid/types/MoviePreview.ts";
+import type {MoviePreview} from "../../../grid/types/MoviePreview.ts";
 import {getHistory} from "../../api/movie_api.ts";
 import {HistoryModal} from "../history/HistoryModal.tsx";
 

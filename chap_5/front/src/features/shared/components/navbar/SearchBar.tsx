@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
-import type { MoviePreview } from "../../../welcome_grid/types/MoviePreview.ts";
+import type { MoviePreview } from "../../../grid/types/MoviePreview.ts";
 import { searchMovies } from "../../api/movie_api.ts";
 import { SearchDropdown } from "./SearchDropdown.tsx";
 

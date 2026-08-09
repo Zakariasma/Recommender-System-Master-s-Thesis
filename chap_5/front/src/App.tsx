@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router'
-import {WelcomeGridScreen} from "./features/welcome_grid/screens/WelcomeGridScreen.tsx";
+import {WelcomeGridScreen} from "./features/grid/screens/WelcomeGridScreen.tsx";
 import {MovieDetailScreen} from "./features/detail/screens/MovieDetailScreen.tsx";
 
 function App() {

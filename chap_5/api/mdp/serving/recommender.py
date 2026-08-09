@@ -1,62 +1,77 @@
-from chap_5.api.mdp.config import DATABASE_URL, LIST_SIZE, BOLTZMANN_TEMPERATURE
-from chap_5.api.mdp.helper.kv_store import KeyValueStore
-from chap_5.api.mdp.predictive_model.helper.encoder import encode
-from chap_5.api.mdp.predictive_model.predictive_model import PredictiveModel
+from chap_5.api.mdp.config import LIST_SIZE, BOLTZMANN_TEMPERATURE
+from chap_5.api.mdp.mdp.data.sql import create_database, get_by_batch_policy, get_by_batch_states
+from chap_5.api.mdp.predictive_model.improvement.setup_info_dict.data.sql import create_full_info_database, retrieve_full_info_for_batch
 from chap_5.api.mdp.serving.boltzmann import boltzmann, sample
 
 
 class Recommender:
 
-    def __init__(self, predictive_model: PredictiveModel, temperature: float = BOLTZMANN_TEMPERATURE):
-        self.model = predictive_model
-        self.policy_store = KeyValueStore(DATABASE_URL, namespace="policy")
-        self.v_store = KeyValueStore(DATABASE_URL, namespace="V")
+    def __init__(self, temperature: float = BOLTZMANN_TEMPERATURE):
+        self.kv_engine = create_database()
+        self.full_info_engine = create_full_info_database()
         self.temperature = temperature
 
     def recommend(self, s: tuple, n: int = LIST_SIZE) -> list:
-        key = encode(s)
-        policy = self.policy_store.get(key, default=None)
-        successors = self.model.get_successors(s)
+        policies = get_by_batch_policy(self.kv_engine, {s})
+        policy_items = policies.get(s, [])
 
+        full_info_batch = retrieve_full_info_for_batch(self.full_info_engine, {s})
+        info = full_info_batch.get(s)
 
-        if not successors and not policy:
+        if not info and not policy_items:
             return []
 
-        recommended_items = []
-        pool = successors.copy()
+        pool = {}
 
-        if policy:
-            top_item = policy[0][0]  # Fixe le 1er item le meilleur selon le MDP
+        if info:
+            for i_k in range(3):
+                s_primes = info[i_k * 4]
+                tr_predicts = info[i_k * 4 + 1]
+
+                if len(s_primes) > 0:
+                    last_items = s_primes[:, -1]
+
+                    for i, r in enumerate(last_items.tolist()):
+                        if r not in pool:
+                            pool[r] = float(tr_predicts[i])
+
+        recommended_items = []
+
+        if policy_items:
+            top_item = policy_items[0]
             recommended_items.append(top_item)
 
-            # retire du pool pour pas le recommander 2 fois
             if top_item in pool:
                 del pool[top_item]
 
-        # Boltzmann sur le reste
         if len(recommended_items) < n and pool:
-            next_states_keys = {r: encode(s[1:] + (r,)) for r in pool.keys()}
-            v_dict = self.v_store.get_many(list(next_states_keys.values()))
+            next_states = {r: s[1:] + (r,) for r in pool.keys()}
+
+            v_dict = get_by_batch_states(self.kv_engine, set(next_states.values()))
+
             v_pool = {}
-            for r, k_next in next_states_keys.items():
-                v_next = v_dict.get(k_next)
+
+            for r, s_next in next_states.items():
+                v_next = v_dict.get(s_next)
+
                 if v_next is not None:
                     v_pool[r] = v_next
 
             if v_pool:
                 distribution = boltzmann(v_pool, self.temperature)
-                rest = sample(distribution, n - len(recommended_items))
-                recommended_items.extend(rest)
             else:
-                # si aucun des états n'a été observé on utilise les proba de transition
                 distribution = boltzmann(pool, self.temperature)
-                rest = sample(distribution, n - len(recommended_items))
-                recommended_items.extend(rest)
+
+            rest = sample(distribution, n - len(recommended_items))
+            recommended_items.extend(rest)
 
         return recommended_items
 
 
 if __name__ == "__main__":
-    pred_model = PredictiveModel()
-    recommender = Recommender(pred_model)
-    print(recommender.recommend((2774, 5896, 1456)))
+    recommender = Recommender()
+
+    state_test = (11, 1536, 8396)
+
+    print(f"Recommandations pour l'état {state_test} :")
+    print(recommender.recommend(state_test))

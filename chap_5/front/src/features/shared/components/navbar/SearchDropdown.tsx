@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { MoviePreview } from "../../../welcome_grid/types/MoviePreview.ts";
+import type { MoviePreview } from "../../../grid/types/MoviePreview.ts";
 
 type SearchDropdownProps = {
     results: MoviePreview[];

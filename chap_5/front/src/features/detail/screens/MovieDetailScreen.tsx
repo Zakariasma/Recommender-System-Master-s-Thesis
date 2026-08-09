@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router";
 import { fetchMovieDetails, logMovieView } from "../api/movie_details_api.ts";
-import {useMoviesStore} from "../../welcome_grid/stores/useMoviesStore.ts";
-import {MovieBackground} from "../components/MovieBackground.tsx";
-import {MoviePoster} from "../components/MoviePoster.tsx";
-import {MovieInfo} from "../components/MovieInfo.tsx";
-import {BackButton} from "../components/BackButton.tsx";
+import { useMoviesStore } from "../../grid/stores/useMoviesStore.ts";
+import { MovieBackground } from "../components/MovieBackground.tsx";
+import { MoviePoster } from "../components/MoviePoster.tsx";
+import { MovieInfo } from "../components/MovieInfo.tsx";
+import { BackButton } from "../components/BackButton.tsx";
 
 export function MovieDetailScreen() {
     const { id } = useParams<{ id: string }>();
@@ -14,6 +14,7 @@ export function MovieDetailScreen() {
 
     const detailsCache = useMoviesStore((state) => state.detailsCache);
     const setDetails = useMoviesStore((state) => state.setDetails);
+    const addToHistory = useMoviesStore((state) => state.addToHistory);
 
     const movie = id ? detailsCache[id] : undefined;
     const hasFetched = useRef<string | null>(null);
@@ -21,19 +22,21 @@ export function MovieDetailScreen() {
     useEffect(() => {
         if (!id) return;
 
+        if (hasFetched.current === id) return;
+        hasFetched.current = id;
+
+        logMovieView(id);
+        addToHistory(id);
+
         if (detailsCache[id]) {
             return;
         }
-
-        if (hasFetched.current === id) return;
-        hasFetched.current = id;
 
         const loadMovie = async () => {
             try {
                 setIsLoading(true);
                 const data = await fetchMovieDetails(id);
                 setDetails(data);
-                logMovieView(id);
             } catch (err) {
                 console.error(err);
                 setError("Impossible de charger le film.");
@@ -43,7 +46,7 @@ export function MovieDetailScreen() {
         };
 
         loadMovie();
-    }, [id, detailsCache, setDetails]);
+    }, [id, detailsCache, setDetails, addToHistory]);
 
     if (isLoading) return <div className="w-full h-screen bg-rs-black text-rs-white flex items-center justify-center">Chargement...</div>;
     if (error) return <div className="w-full h-screen bg-rs-black text-red-500 flex items-center justify-center">{error}</div>;

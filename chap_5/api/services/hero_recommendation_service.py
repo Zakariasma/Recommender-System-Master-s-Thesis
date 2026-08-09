@@ -12,13 +12,14 @@ class HeroRecommendationService:
         self.recommender = recommender
 
     def get_recommendations(self) -> list[HeroSlide]:
-        """Récupère les recommandations MDP basées sur le dernier état de l'historique global."""
         try:
             state = self._build_current_state()
             if state is None:
                 return []
 
+
             rec_ids = self.recommender.recommend(state)
+            print(state)
             if not rec_ids:
                 return []
 
@@ -28,7 +29,6 @@ class HeroRecommendationService:
             return []
 
     def _build_current_state(self) -> tuple | None:
-        """Construit l'état (derniers K films vus) à partir de l'historique global de l'app."""
         query = text("SELECT movie_id FROM movie_history ORDER BY viewed_at DESC LIMIT :limit")
 
         with self.engine.connect() as conn:
@@ -38,13 +38,10 @@ class HeroRecommendationService:
             return None
 
         state_list = [r[0] for r in rows]
-        while len(state_list) < K:
-            state_list.insert(0, state_list[-1])  # bourrage avec le dernier film connu
 
-        return tuple(state_list[:K])
+        return tuple(reversed(state_list))
 
     def _to_hero_slides(self, rec_ids: list) -> list[HeroSlide]:
-        """Récupère les détails des films recommandés et les convertit en HeroSlide."""
         query = text("""
             SELECT id, title, background, poster, plot, release_date, score
             FROM movies
