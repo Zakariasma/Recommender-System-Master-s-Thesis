@@ -1,14 +1,22 @@
 import os
 import shutil
+from functools import lru_cache
+
 import pandas as pd
 from psycopg2.extras import execute_values
 from sqlalchemy import create_engine, inspect
 
 from chap_5.api.mdp.config import DATABASE_URL
 
-
+@lru_cache()
 def get_engine():
-    return create_engine(DATABASE_URL)
+    return create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800
+    )
 
 
 def _seed(engine, df, name):
