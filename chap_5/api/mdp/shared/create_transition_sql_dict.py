@@ -6,7 +6,6 @@ from chap_5.api.mdp.shared.debug_log import log_progress, reset_progress
 
 
 def _get_conn(db_path: str) -> sqlite3.Connection:
-    """Ouvre une connexion native sqlite3 et applique les PRAGMAs d'optimisation."""
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -39,7 +38,6 @@ def generate_transition_dict(db_path: str, max_k: int, source_suffix: str, targe
         stream_cur = read_conn.cursor()
         query_cur = read_conn.cursor()
 
-        # Table temp de candidats, créée une seule fois et réutilisée à chaque batch
         read_conn.execute("CREATE TEMP TABLE candidates (k INTEGER, blob BLOB)")
         read_conn.execute("CREATE INDEX idx_candidates_k_blob ON candidates(k, blob)")
 
@@ -65,7 +63,6 @@ def generate_transition_dict(db_path: str, max_k: int, source_suffix: str, targe
 
             batch_trans = {s: {1: ([], []), 2: ([], []), 3: ([], [])} for s in s_blobs}
 
-            # --- Population de la table candidats en une fois ---
             read_conn.execute("DELETE FROM candidates")
             candidate_rows = [
                 (k_val, blob)
@@ -83,7 +80,6 @@ def generate_transition_dict(db_path: str, max_k: int, source_suffix: str, targe
                 """, (k_val,))
                 fetched_by_k[k_val] = query_cur.fetchall()
 
-            # --- Collecte : on garde les blobs bruts, aucun decode ---
             for k_val in [1, 2, 3]:
                 sub_map = sub_maps[k_val]
                 for sub_s_blob, s_prime_blob, prob in fetched_by_k[k_val]:
@@ -92,7 +88,6 @@ def generate_transition_dict(db_path: str, max_k: int, source_suffix: str, targe
                         succ.append(s_prime_blob)
                         probas.append(prob)
 
-            # --- Encode : join des blobs (identique à encode_successors_fixed) ---
             batch = []
             for s_blob in s_blobs:
                 s1, p1 = batch_trans[s_blob][1]

@@ -57,7 +57,6 @@ def predict_rating(user, film_idx):
             num += sim * (note - moyenne(other))
             den += abs(sim)
 
-    # Evite division par zéro
     if den == 0:
         return None
 
@@ -72,7 +71,6 @@ for user in users:
 
     preds = []
     for i, note in enumerate(ratings[user]):
-        # film pas vu
         if note is None:
             pred = predict_rating(user, i)
             if pred is not None:

@@ -1,8 +1,6 @@
 import os
 import shutil
 from functools import lru_cache
-
-import pandas as pd
 from psycopg2.extras import execute_values
 from sqlalchemy import create_engine, inspect
 
@@ -58,13 +56,3 @@ def insert(engine, df, table_name):
         raise
     finally:
         conn.close()
-
-
-def insert_csv_in_chunks(engine, csv_path, table_name, chunksize=50000):
-    dtypes = {
-        "transitions": {"s": str, "s_": str},
-        "kv_store": {"namespace": str, "key": str, "value": str}
-    }.get(table_name)
-
-    for chunk in pd.read_csv(csv_path, chunksize=chunksize, dtype=dtypes):
-        insert(engine, chunk, table_name)

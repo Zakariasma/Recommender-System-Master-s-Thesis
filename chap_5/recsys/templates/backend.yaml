@@ -27,9 +27,7 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "recsys.fullname" . }}-backend-data
       {{- end }}
-      # ------------------------------
 
-      # --- INIT CONTAINER (Exécuté avant FastAPI) ---
       initContainers:
         - name: bootstrap-db
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
@@ -45,7 +43,6 @@ spec:
             - name: mdp-data
               mountPath: {{ .Values.backend.persistence.mountPath }}
           {{- end }}
-      # -----------------------------------------------
 
       containers:
         - name: backend

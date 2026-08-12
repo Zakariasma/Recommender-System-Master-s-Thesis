@@ -1,4 +1,4 @@
-from chap_5.api.mdp.dataset.utils.fill_up_db import insert_csv_in_chunks, get_engine, insert
+from chap_5.api.mdp.dataset.utils.fill_up_db import get_engine, insert
 from chap_5.api.mdp.dataset.utils.frontend_data_caching import init_frontend_cache
 from chap_5.api.mdp.dataset.utils.parse_csv import parse_csv
 from chap_5.api.mdp.dataset.utils.transform_to_npy import transform_to_npy

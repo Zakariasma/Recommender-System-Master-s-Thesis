@@ -13,8 +13,6 @@ DB_USER = os.getenv("POSTGRES_USER", "postgres")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-BOOTSTRAP = os.getenv("BOOTSTRAP", "true").lower() in ("true", "1", "t")
-
 K = int(os.getenv("MDP_K", 3))
 FRACTION = float(os.getenv("MDP_FRACTION", 0.001))
 MAX_SKIP = int(os.getenv("MDP_MAX_SKIP", 5))

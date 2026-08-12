@@ -19,7 +19,6 @@ films = {
     'Usual Suspects': USUAL_SUSPECTS
 }
 
-# Les historiques utilisent le nom du film comme clé
 utilisateurs = {
     'ALICE': {'K-PAX': 5, 'Memento': 3, 'Usual Suspects': 4},
     'BOB': {'Life of Brian': 4, 'Notorious': 2, 'The Dictator': 5},
@@ -52,13 +51,13 @@ def calc_users_profils():
 
 
 profils = calc_users_profils()
-print("--- Profils Utilisateurs (Moyenne Pondérée) ---")
+print("Profils Utilisateurs")
 for p in profils:
     print(f"{p}: {np.round(profils[p], 2)}")
 
 
 cos_sim_result = {}
-print("\n--- Recommandations ---")
+print("\nRecommandations")
 for user in profils:
     user_history = get_movie_user_history(user)
     cos_sim_result[user] = {}

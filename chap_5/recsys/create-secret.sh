@@ -5,7 +5,7 @@ ENV_FILE="${1:-.env}"
 VALUES_FILE="${2:-values.yaml}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "❌ Env file not found: $ENV_FILE"
+  echo "Env file not found: $ENV_FILE"
   exit 1
 fi
 
@@ -30,7 +30,7 @@ while IFS='=' read -r key val; do
 done < "$ENV_FILE"
 
 if [ ${#KEYS_TO_ENCRYPT[@]} -eq 0 ]; then
-  echo "❌ Aucune variable à chiffrer trouvée dans $ENV_FILE"
+  echo "Aucune variable à chiffrer trouvée dans $ENV_FILE"
   exit 1
 fi
 
@@ -41,13 +41,13 @@ TMP_SEALED="$(mktemp)"
 cleanup() { rm -f "$TMP_CERT" "$TMP_SECRET" "$TMP_SEALED"; }
 trap cleanup EXIT
 
-echo "📡 Fetching public certificate..."
+echo "Fetching public certificate..."
 kubeseal \
   --controller-name=sealed-secrets-controller \
   --controller-namespace=kube-system \
   --fetch-cert > "$TMP_CERT"
 
-echo "🔧 Creating temporary Secret with all values..."
+echo "Creating temporary Secret with all values..."
 # Construire les arguments --from-literal dynamiquement
 FROM_LITERAL_ARGS=()
 for key in "${KEYS_TO_ENCRYPT[@]}"; do
@@ -62,16 +62,16 @@ kubectl create secret generic "$SECRET_NAME" \
   "${FROM_LITERAL_ARGS[@]}" \
   -o yaml > "$TMP_SECRET"
 
-echo "🔒 Encrypting all values into one SealedSecret..."
+echo "Encrypting all values into one SealedSecret..."
 kubeseal \
   --cert "$TMP_CERT" \
   --scope namespace-wide \
   --format yaml < "$TMP_SECRET" > "$TMP_SEALED"
 
-echo "🚀 Applying SealedSecret to cluster..."
+echo "Applying SealedSecret to cluster..."
 kubectl apply -f "$TMP_SEALED" -n "$NAMESPACE"
 
-echo "📝 Updating $VALUES_FILE..."
+echo "Updating $VALUES_FILE..."
 # Utilisation de Python pour mettre à jour proprement le YAML (sans détruire le fichier)
 python3 - "$TMP_SEALED" "$VALUES_FILE" << 'EOF'
 import yaml

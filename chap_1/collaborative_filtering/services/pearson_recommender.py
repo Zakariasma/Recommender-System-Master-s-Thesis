@@ -19,22 +19,14 @@ class PearsonRecommender:
     def recommend(self, user_id, top_k=10):
         # Traduire id user en id interne
         inner_uid = self.trainset.to_inner_uid(user_id)
-
-        # Recup liste des films déjà vus par l'user
         seen = [iid for (iid, _) in self.trainset.ur[inner_uid]]
         predictions = []
-
-        # Tout les films du trainset
         for inner_iid in self.trainset.all_items():
-
-            # Skip films deja vu par user
             if inner_iid in seen:
                 continue
 
             # Traduire id interne en id movieLens
             raw_iid = self.trainset.to_raw_iid(inner_iid)
-
-            # Prediction note
             pred = self.algo.predict(user_id, raw_iid, verbose=False)
             predictions.append((raw_iid, pred.est))
 
